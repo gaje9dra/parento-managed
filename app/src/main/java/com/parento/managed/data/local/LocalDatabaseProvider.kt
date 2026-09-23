@@ -18,18 +18,4 @@ object LocalDatabaseProvider {
 
     fun get(): ParentoDatabase =
         database ?: error("Parento local database has not been initialized.")
-
-    fun initializeForTest(database: ParentoDatabase) {
-        synchronized(this) {
-            this.database?.close()
-            this.database = database
-        }
-    }
-
-    fun clearForTest() {
-        synchronized(this) {
-            database?.close()
-            database = null
-        }
-    }
 }
