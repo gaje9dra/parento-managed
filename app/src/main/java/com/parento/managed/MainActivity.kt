@@ -16,7 +16,10 @@ class MainActivity : AppCompatActivity() {
         viewModel = ViewModelProvider(this)[ManagedStatusViewModel::class.java]
         screen = ManagedStatusScreen(
             context = this,
-            onRetry = { viewModel.showUnenrolled() },
+            onRetry = {
+                viewModel.showUnenrolled()
+                render()
+            },
         )
 
         setContentView(screen.view())
