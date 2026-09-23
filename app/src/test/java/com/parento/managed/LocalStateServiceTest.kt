@@ -90,9 +90,8 @@ class LocalStateServiceTest {
     private class FakeLocalStateRepository(
         var state: LocalApplicationState? = null,
         private val readResult: OperationResult<LocalApplicationState?>? = null,
-    ) {
-        var writeCount: Int = 0
     ) : LocalStateRepository {
+        var writeCount: Int = 0
         override suspend fun read() = readResult ?: OperationResult.Success(state)
         override suspend fun write(state: LocalApplicationState): OperationResult<Unit> {
             writeCount += 1
