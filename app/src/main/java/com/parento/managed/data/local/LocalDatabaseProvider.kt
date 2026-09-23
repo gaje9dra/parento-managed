@@ -1,7 +1,6 @@
 package com.parento.managed.data.local
 
 import android.content.Context
-import androidx.room.Room
 
 object LocalDatabaseProvider {
     @Volatile
@@ -11,11 +10,7 @@ object LocalDatabaseProvider {
         database?.let { return it }
 
         return synchronized(this) {
-            database ?: Room.databaseBuilder(
-                context.applicationContext,
-                ParentoDatabase::class.java,
-                DATABASE_NAME,
-            )
+            database ?: ParentoDatabase.builder(context)
                 .build()
                 .also { database = it }
         }
@@ -37,6 +32,4 @@ object LocalDatabaseProvider {
             database = null
         }
     }
-
-    private const val DATABASE_NAME = "parento-managed.db"
 }
