@@ -152,3 +152,36 @@ Later Admin phases must consume backend-mediated contracts for administrator-fac
 ## Phase status
 
 Phase 1.3 establishes configuration, environment separation, controlled logging, startup initialization, and a basic Android security baseline without implementing future device-management functionality.
+
+## Existing architecture boundaries
+
+Phase 1.2 established these boundaries and they remain intact:
+
+- Presentation / UI
+- Device Management
+- Policy Engine
+- Communication
+- Security
+- Local Data
+- Android Platform Integration
+- Background work
+- Logging
+
+The domain model remains Android-independent and contains ManagedDevice, DeviceStatus, EnrollmentState, PolicyState, ConnectionState, OperationResult, and ManagedError. Phase 1.3 does not implement enrollment, backend communication, policy enforcement, or device-control behavior.
+
+## Established Android versions and dependencies
+
+Phase 1.3 preserves the existing versions rather than upgrading unrelated tooling:
+
+- Android Gradle Plugin: 8.13.0
+- Kotlin: 2.2.20
+- compileSdk: 36
+- targetSdk: 36
+- minSdk: 26
+- Java/Kotlin JVM target: 17
+- AndroidX Core KTX: 1.17.0
+- AndroidX AppCompat: 1.7.1
+- Material Components: 1.13.0
+- JUnit: 4.13.2
+
+No new Gradle dependency was introduced in Phase 1.3.
