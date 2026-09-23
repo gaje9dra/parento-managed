@@ -9,4 +9,5 @@
     <string name="error_state">Something went wrong</string>
     <string name="retry">Retry</string>
     <string name="no_device_features_message">Device-management features are not active in this phase.</string>
+    <string name="version_label">Version %1$s</string>
 </resources>
