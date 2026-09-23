@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Parento Managed</string>
-    <string name="phase_status">Device management setup will be available in a later phase.</string>
+    <string name="device_status_title">Device status</string>
+    <string name="unenrolled_state">Management status</string>
+    <string name="unenrolled_message">This device is not enrolled with Parento.</string>
+    <string name="loading_state">Loading current application state…</string>
+    <string name="loading_description">Loading</string>
+    <string name="error_state">Something went wrong</string>
+    <string name="retry">Retry</string>
+    <string name="no_device_features_message">Device-management features are not active in this phase.</string>
 </resources>
