@@ -66,6 +66,7 @@ class ManagedStatusScreen(
 
     private fun renderUnenrolled() {
         subtitle.text = context.getString(R.string.unenrolled_state)
+        addMessage(context.getString(R.string.version_label, BuildConfig.VERSION_NAME))
         addMessage(context.getString(R.string.unenrolled_message))
     }
 
