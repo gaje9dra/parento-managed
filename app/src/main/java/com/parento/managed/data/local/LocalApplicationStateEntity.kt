@@ -10,6 +10,10 @@ data class LocalApplicationStateEntity(
     val stateVersion: Int = 1,
     val lastSynchronizationTimestamp: Long? = null,
     val initialized: Boolean = false,
+    val installationId: String? = null,
+    val identityCreatedAtEpochMillis: Long? = null,
+    val enrollmentState: String = "UNENROLLED",
+    val connectionState: String = "UNKNOWN",
 ) {
     companion object {
         const val SINGLETON_ID = 1
