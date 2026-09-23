@@ -123,3 +123,43 @@ Future phases may define authenticated backend contracts, enrollment, device ide
 Parento Managed -> Parento Backend <- Parento Admin
 
 The managed app will eventually authenticate/enroll and communicate with the backend. The Admin app will consume backend-mediated administrator contracts. Those protocols are not implemented in Phase 1.5 and this repository does not modify either companion repository.
+
+## Phase 2.1 — Local Persistence
+
+Phase 2.1 adds Room as the managed app's local relational persistence technology.
+
+Persistence flow:
+
+UI → ViewModel → Domain / Use Case → Repository → Local Data Source → Room Database
+
+The UI does not access Room directly, and the database has no UI dependencies.
+
+### Database
+
+ParentoDatabase contains only the minimal baseline entity LocalApplicationStateEntity. It stores stateVersion, lastSynchronizationTimestamp, and initialized. No enrollment, authentication, device-control, sensor, policy, command, location, or audit entities were created.
+
+LocalDatabaseProvider initializes the database once using applicationContext and exposes isolated test setup/cleanup hooks.
+
+### Repository
+
+LocalStateRepository abstracts reading, writing, clearing, and observing local state. RoomLocalStateRepository maps Room entities to domain data and converts storage failures into the existing ManagedError.STORAGE_FAILURE result instead of exposing raw database exceptions to UI.
+
+DAO operations are suspend functions or Flow. No arbitrary thread pool or main-thread database operation is used by production code.
+
+### Schema and migration boundary
+
+Room database versioning is enabled at version 1 with schema export configured under schemas/. No fake future migration was added. Future schema changes must increment the Room version and provide an explicit deterministic migration. Destructive migration is not enabled.
+
+### Security
+
+Phase 2.1 stores no credentials or secrets. Storage contents are not logged. Android backup remains disabled and no sensitive Android permissions were added. Future sensitive state must use appropriate Android secure-storage/cryptographic facilities in its relevant phase; no custom cryptographic protocol is introduced.
+
+### Testing
+
+JVM tests cover the local-state model and storage error contract. Android instrumentation tests use an in-memory Room database and cover initialization, write/read, update, clear, reactive observation, and safe result typing.
+
+The in-memory test database is isolated from the application's persistent database.
+
+### Backend boundary
+
+Phase 2.1 does not implement REST, authentication, enrollment API calls, WebSockets, FCM, backend synchronization, or device commands. Local persistence remains independent of future backend synchronization.
