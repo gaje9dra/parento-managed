@@ -52,6 +52,12 @@ class RoomLocalStateRepository(
                 val existingId = existing?.installationId
                 val existingCreatedAt = existing?.identityCreatedAtEpochMillis
                 if (!existingId.isNullOrBlank() && existingCreatedAt != null) {
+                    if (!isValidInstallationId(existingId)) {
+                        throw IllegalStateException("Invalid persisted installation identity.")
+                    }
+                    if (existingCreatedAt <= 0L) {
+                        throw IllegalStateException("Invalid persisted identity timestamp.")
+                    }
                     return@runStorageOperation LocalDeviceIdentity(existingId, existingCreatedAt)
                 }
 
@@ -76,6 +82,12 @@ class RoomLocalStateRepository(
                     !current.installationId.isNullOrBlank() &&
                     current.identityCreatedAtEpochMillis != null
                 ) {
+                    if (!isValidInstallationId(current.installationId)) {
+                        throw IllegalStateException("Invalid persisted installation identity.")
+                    }
+                    if (current.identityCreatedAtEpochMillis <= 0L) {
+                        throw IllegalStateException("Invalid persisted identity timestamp.")
+                    }
                     LocalDeviceIdentity(current.installationId, current.identityCreatedAtEpochMillis)
                 } else {
                     LocalDeviceIdentity(UUID.randomUUID().toString(), System.currentTimeMillis())
@@ -135,3 +147,7 @@ private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
         identityCreatedAtEpochMillis = identityCreatedAtEpochMillis,
         enrollmentState = enrollmentState.name,
     )
+
+
+private fun isValidInstallationId(value: String): Boolean =
+    runCatching { UUID.fromString(value) }.isSuccess
