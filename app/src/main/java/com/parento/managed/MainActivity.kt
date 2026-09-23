@@ -1,31 +1,37 @@
 package com.parento.managed
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.textview.MaterialTextView
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
+import com.parento.managed.ui.ManagedStatusScreen
+import com.parento.managed.ui.ManagedStatusViewModel
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
+    private lateinit var viewModel: ManagedStatusViewModel
+    private lateinit var screen: ManagedStatusScreen
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val title = MaterialTextView(this).apply {
-            text = getString(R.string.app_name)
-            textSize = 28f
-            setPadding(32, 64, 32, 16)
-        }
+        viewModel = ViewModelProvider(this)[ManagedStatusViewModel::class.java]
+        screen = ManagedStatusScreen(
+            context = this,
+            onRetry = { viewModel.showUnenrolled() },
+            onDestination = { /* Future destinations are represented by the navigation boundary. */ },
+        )
 
-        val status = MaterialTextView(this).apply {
-            text = getString(R.string.phase_status)
-            textSize = 16f
-            setPadding(32, 16, 32, 32)
-        }
+        setContentView(screen.view())
+        render()
+    }
 
-        val container = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            addView(title)
-            addView(status)
-        }
+    override fun onStart() {
+        super.onStart()
+        render()
+    }
 
-        setContentView(container)
+    private fun render() {
+        if (::screen.isInitialized && ::viewModel.isInitialized) {
+            screen.render(viewModel.uiState)
+        }
     }
 }
