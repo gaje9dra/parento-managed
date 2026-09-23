@@ -1,6 +1,5 @@
 package com.parento.managed.policy
 
-import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
 
 interface PolicyEngine {
