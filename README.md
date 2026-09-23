@@ -1,254 +1,154 @@
 # Parento Managed
 
-**Parento Managed** is the Android application installed on an explicitly enrolled and authorized device in the Parento platform.
+Parento Managed is the Android application installed on an explicitly enrolled and authorized device in the Parento platform.
 
-## Architecture
+## Repository boundary
 
-Parento consists of three strictly separated components:
+This repository is only the managed-device Android application:
+gaje9dra/parento-managed
 
-```
-Parento Admin
-      ↓
-Parento Backend
-      ↓
-Parento Managed
-```
-
-- `gaje9dra/parento-admin` — administrator/controller Android application.
-- `gaje9dra/parento-backend` — trusted API, persistence, realtime, and authorization layer.
-- `gaje9dra/parento-managed` — this Android managed-device application.
-
-The Managed app does not communicate directly with the Admin app. Future communication is mediated by the backend.
+The companion repositories are not modified by this phase:
+- gaje9dra/parento-admin
+- gaje9dra/parento-backend
 
 ## Current phase
 
-**Phase 1.2 — Managed Android App Architecture & Internal Contracts**
+Phase 1.3 — Configuration, Environment & Operational Foundation
 
-Phase 1.1 established the Android/Gradle foundation. Phase 1.2 adds internal boundaries and domain contracts while keeping all future device-management functionality unimplemented.
+Phase 1.1 established the Android/Gradle foundation. Phase 1.2 added internal architecture and domain contracts. Phase 1.3 adds centralized configuration, environment separation, startup initialization, controlled logging, and an Android security baseline.
 
-## Internal layers
+No device-management functionality is implemented.
 
-The application is prepared around these responsibilities:
+## Configuration
 
-```
-Presentation / UI
-       |
-Device Management
-       |
-Policy Engine
-       |
-Communication
-       |
-Security
-       |
-Local Data
-       |
-Android Platform Integration
-```
+Configuration is supplied through Android Gradle BuildConfig fields and consumed through BuildConfiguration / ManagedApplicationConfig. Application code should use the typed AppConfig boundary instead of scattering build constants through features.
 
-These are architectural boundaries, not a claim that future functionality already exists.
+### Environments
 
-### Presentation / UI
+| Build type | Environment | Backend URL | Logging | Diagnostics |
+|---|---|---|---|---|
+| debug | development | https://dev-backend.example.invalid | DEBUG | enabled |
+| test | test | https://test-backend.example.invalid | INFO | disabled |
+| release | production | https://backend.example.invalid | WARN | disabled |
 
-`MainActivity` remains the minimal launch surface. Feature UI belongs here and should consume domain/application interfaces rather than embedding backend or platform logic.
+The .example.invalid endpoints are documentation/test placeholders, not production services. No production credentials are included.
 
-### Device Management
+The release configuration requires HTTPS. The final production backend domain must be supplied in deployment configuration when finalized; it is deliberately not invented here.
 
-`DeviceManager` defines the boundary for managed-device state and future lifecycle operations.
+### Feature flags
 
-### Policy Engine
+A small typed feature-flag foundation exists. Future capabilities are disabled by default:
+- enrollment
+- realtime communication
+- location
+- screen sharing
+- audio
+- application management
+- website filtering
+- device restrictions
 
-`PolicyEngine` defines the boundary for validating future policy definitions. It does not enforce application, website, network, or device restrictions in this phase.
+The flags do not implement or activate those features.
 
-### Communication
+## Logging
 
-`BackendClient` defines the future backend communication boundary. Phase 1.2 does not connect to `gaje9dra/parento-backend`, authenticate, send commands, or establish realtime communication.
+ManagedLogger remains the application logging boundary. AndroidManagedLogger centrally applies the configured minimum log level and enabled/disabled state.
 
-### Security
+Do not log authentication or enrollment tokens, passwords, private keys, authorization headers, secrets, unnecessary location information, camera/microphone/screen contents, or other sensitive device information.
 
-`SecurityStore` defines where future secure device identity, tokens, and credential operations belong. No production credentials or bypass mechanisms are created.
+Release logging is intentionally restricted to WARN and ERROR-level output.
 
-### Local Data
+## Startup
 
-`LocalDataStore` defines the future persistence boundary for device, enrollment, policy, and synchronization state. No sensitive production credential is persisted and no complete database is implemented.
+ParentoApplication initializes configuration before the existing UI is created. Startup does not contact the backend and does not initialize future device-control services.
 
-### Android Platform Integration
+## Security baseline
 
-`AndroidPlatform` isolates future Android-specific APIs. Sensitive permissions and platform capabilities must be introduced only with the feature that legitimately requires them.
+The manifest currently:
+- exposes only the launcher Activity
+- sets android:exported=true only where required for the launcher
+- disables application backup
+- disables global cleartext traffic
 
-### Background work
+No camera, microphone, location, screen-capture, accessibility, VPN, Device Owner, or other sensitive permissions were added.
 
-`BackgroundWorkScheduler` is the extension point for future authorized synchronization work. Phase 1.2 does not start persistent background services or hidden monitoring.
+Future sensitive capabilities must use legitimate Android/Android Enterprise APIs and explicit platform permissions.
 
-### Logging
+## Version information
 
-`ManagedLogger` provides a small logging contract with explicit levels. Implementations must not log passwords, authentication tokens, private keys, sensitive credentials, unnecessary personal data, or sensitive device content.
+Current application version remains:
+- version name: 0.1.0
+- version code: 1
 
-## Domain/state model
+Future release signing should use real deployment-managed signing credentials outside source control. Fake signing credentials are not included.
 
-The domain layer is Android-independent and currently contains only minimal concepts:
+## Development setup
 
-- `ManagedDevice`
-- `DeviceStatus`
-- `EnrollmentState`
-- `PolicyState`
-- `ConnectionState`
-- `OperationResult`
-- `ManagedError`
+Open the repository in Android Studio with a compatible JDK/Android SDK and allow Gradle to sync.
 
-The device lifecycle/status model can represent:
+Build debug:
+./gradlew assembleDebug
 
-```
-UNENROLLED
-ENROLLING
-ENROLLED
-CONNECTED
-DISCONNECTED
-REVOKED
-ERROR
-```
+Run unit tests:
+./gradlew test
 
-Enrollment and policy states are kept separate from connection state so later implementations can model those concerns independently.
+Run lint:
+./gradlew lint
 
-`OperationResult` provides a consistent success/failure shape for future operations. Failure categories include invalid state, network, authentication, authorization, policy, Android platform, storage, and unknown/internal failures.
+Build the test environment variant:
+./gradlew assembleTest
 
-## Phase 1.2 limitations
+Build release:
+./gradlew assembleRelease
 
-The following are **not implemented**:
+On Windows, use gradlew.bat instead of ./gradlew.
 
-- Admin authentication
-- Managed-device enrollment
-- QR pairing
-- Device credentials
-- Backend authentication
-- Location or location history
-- Screen sharing
-- Microphone/audio capture
-- Camera access
-- Gallery access
-- Application blocking
-- Installation blocking
-- Website blocking
-- DNS/VPN filtering
-- Device locking
-- Remote commands
-- Notifications
-- Production policy enforcement
-- Backend API calls
-- Realtime communication
+No secrets are required for the current phase.
 
-No sensitive Android runtime permissions were added.
+## Testing
 
-## Project structure
+Phase 1.3 adds configuration tests covering:
+- valid configuration loading
+- development/test/production separation
+- invalid backend URL rejection
+- production HTTPS enforcement
+- production diagnostics restrictions
+- default feature-flag state
 
-```
-app/
-  src/
-    main/
-      java/com/parento/managed/
-        MainActivity.kt
-        background/
-          BackgroundWorkScheduler.kt
-        communication/
-          BackendClient.kt
-        data/
-          LocalDataStore.kt
-        device/
-          DeviceManager.kt
-        domain/
-          ConnectionState.kt
-          DeviceStatus.kt
-          EnrollmentState.kt
-          ManagedDevice.kt
-          OperationResult.kt
-          OperationResult.kt
-          PolicyState.kt
-        logging/
-          ManagedLogger.kt
-        platform/
-          AndroidPlatform.kt
-        policy/
-          PolicyEngine.kt
-        security/
-          SecurityStore.kt
-      res/
-        values/
-          strings.xml
-          themes.xml
-      AndroidManifest.xml
-    test/
-      java/com/parento/managed/
-        ArchitectureTest.kt
-        ExampleUnitTest.kt
-```
+The tests use the existing JUnit 4 dependency; no second test framework was introduced.
 
-## Dependencies
+## Limitations
 
-No new Gradle dependencies were added in Phase 1.2. The existing Phase 1.1 dependencies remain sufficient for these pure Kotlin interfaces and tests.
-
-## Security and privacy baseline
-
-- No passwords, API keys, private keys, or production credentials are stored in source.
-- No hidden administrator account or bypass mechanism exists.
-- No covert remote-control or surveillance mechanism is implemented.
-- No sensitive runtime permissions were introduced.
-- Future management capabilities must use Android-supported security/device-management APIs.
-- Permission requests must be introduced only alongside the feature that legitimately requires them.
-
-## Backend boundary
-
-Future Managed-app communication will use:
-
-`gaje9dra/parento-backend`
-
-The expected future boundary is an authenticated backend API/realtime interface defined by later backend phases. Phase 1.2 deliberately does not call or authenticate against the backend.
+The following remain intentionally unimplemented:
+- user/admin authentication
+- Google OAuth
+- password authentication
+- device enrollment or QR pairing
+- backend authentication or API calls
+- device identity provisioning
+- location/GPS collection
+- camera or microphone access
+- audio capture
+- screen capture / MediaProjection / screen sharing
+- application blocking or installation restrictions
+- website/DNS/VPN/network filtering
+- device locking or remote wipe
+- Device Owner / Android Enterprise provisioning
+- accessibility-based control
+- hidden monitoring or covert persistence
+- permission/security bypasses
 
 ## Cross-repository requirements
 
-No code changes are required in the companion repositories during this phase.
+No companion repository was modified in Phase 1.3.
 
-**Cross-repository requirement**
+### gaje9dra/parento-backend
 
-Repository: `gaje9dra/parento-backend`
+Later backend phases must expose the concrete authenticated managed-device API/realtime contracts that correspond to the Managed app communication boundary and finalized backend base URL.
 
-Requirement: Later expose the concrete managed-device authentication, enrollment, policy, status, event, and command contracts required by the `BackendClient` boundary.
+### gaje9dra/parento-admin
 
-Reason: The Managed app must communicate through the trusted backend rather than directly with the Admin app.
-
-Expected interface: Authenticated HTTPS/realtime contracts under the backend's versioned API, with device authorization enforced server-side.
-
-Repository: `gaje9dra/parento-admin`
-
-Requirement: Later consume the backend contracts for administrator-facing operations.
-
-Reason: The Admin app must remain separated from the Managed app.
-
-Expected interface: Backend-mediated API/realtime interfaces; no direct Admin → Managed connection.
-
-Neither repository was modified in Phase 1.2.
-
-## Development and verification
-
-Open the repository in Android Studio and allow Gradle to sync.
-
-Typical commands:
-
-```bash
-./gradlew assembleDebug
-./gradlew test
-./gradlew lint
-```
-
-On Windows:
-
-```
-gradlew.bat assembleDebug
-gradlew.bat test
-gradlew.bat lint
-```
-
-Phase 1.2 should be verified with formatting, lint/static analysis, unit tests, Android build, and application launch.
+Later Admin phases must consume backend-mediated contracts for administrator-facing operations. The Admin app must not connect directly to the Managed app.
 
 ## Phase status
 
-Phase 1.2 establishes internal architecture and contracts only. It does not implement future device-management capabilities.
+Phase 1.3 establishes configuration, environment separation, controlled logging, startup initialization, and a basic Android security baseline without implementing future device-management functionality.
