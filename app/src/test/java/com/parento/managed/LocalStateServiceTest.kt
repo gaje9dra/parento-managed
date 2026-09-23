@@ -53,6 +53,35 @@ class LocalStateServiceTest {
     }
 
     @Test
+    fun runtimeConnectionTransitions_areValidatedWithoutPersistence() = runBlocking {
+        val repository = FakeLocalStateRepository(
+            state = LocalApplicationState(
+                initialized = true,
+                installationId = "stable",
+                identityCreatedAtEpochMillis = 1L,
+            ),
+        )
+        val service = LocalStateService(repository)
+        assertEquals(
+            OperationResult.Failure(ManagedError.INVALID_STATE),
+            service.setConnectionState(ConnectionState.CONNECTED),
+        )
+        assertEquals(
+            OperationResult.Success(Unit),
+            service.setConnectionState(ConnectionState.DISCONNECTED),
+        )
+        assertEquals(
+            OperationResult.Success(Unit),
+            service.setConnectionState(ConnectionState.CONNECTING),
+        )
+        assertEquals(
+            OperationResult.Success(Unit),
+            service.setConnectionState(ConnectionState.CONNECTED),
+        )
+        assertEquals(0, repository.writeCount)
+    }
+
+    @Test
     fun repositoryFailure_isReturnedWithoutInventingEnrollment() = runBlocking {
         val service = LocalStateService(FakeLocalStateRepository(readResult = OperationResult.Failure(ManagedError.STORAGE_FAILURE)))
         assertEquals(OperationResult.Failure(ManagedError.STORAGE_FAILURE), service.initialize())
@@ -61,9 +90,15 @@ class LocalStateServiceTest {
     private class FakeLocalStateRepository(
         var state: LocalApplicationState? = null,
         private val readResult: OperationResult<LocalApplicationState?>? = null,
+    ) {
+        var writeCount: Int = 0
     ) : LocalStateRepository {
         override suspend fun read() = readResult ?: OperationResult.Success(state)
-        override suspend fun write(state: LocalApplicationState): OperationResult<Unit> { this.state = state; return OperationResult.Success(Unit) }
+        override suspend fun write(state: LocalApplicationState): OperationResult<Unit> {
+            writeCount += 1
+            this.state = state
+            return OperationResult.Success(Unit)
+        }
         override suspend fun clear() = OperationResult.Success(Unit)
         override fun observe(): Flow<OperationResult<LocalApplicationState?>> = flowOf(OperationResult.Success(state))
         override suspend fun getOrCreateIdentity(): OperationResult<LocalDeviceIdentity> = OperationResult.Success(LocalDeviceIdentity("test-installation", 1L))
@@ -74,6 +109,5 @@ class LocalStateServiceTest {
             return OperationResult.Success(updated)
         }
         override suspend fun updateEnrollmentState(state: EnrollmentState) = OperationResult.Success(Unit)
-        override suspend fun updateConnectionState(state: ConnectionState) = OperationResult.Success(Unit)
     }
 }
