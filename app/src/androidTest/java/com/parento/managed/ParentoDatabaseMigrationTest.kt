@@ -68,4 +68,63 @@ class ParentoDatabaseMigrationTest {
 
         database.close()
     }
+
+    @Test
+    fun migrate2To3_removesRuntimeConnectionStateWithoutLosingPersistentState() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("parento-migration-test-v3")
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(2) {
+                        override fun onCreate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                            database.execSQL(
+                                "CREATE TABLE local_application_state (" +
+                                    "id INTEGER NOT NULL, " +
+                                    "stateVersion INTEGER NOT NULL, " +
+                                    "lastSynchronizationTimestamp INTEGER, " +
+                                    "initialized INTEGER NOT NULL, " +
+                                    "installationId TEXT, " +
+                                    "identityCreatedAtEpochMillis INTEGER, " +
+                                    "enrollmentState TEXT NOT NULL, " +
+                                    "connectionState TEXT NOT NULL, " +
+                                    "PRIMARY KEY(id))",
+                            )
+                        }
+
+                        override fun onUpgrade(
+                            database: androidx.sqlite.db.SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int,
+                        ) = Unit
+                    },
+                )
+                .build(),
+        )
+        val database = helper.writableDatabase
+        database.execSQL(
+            "INSERT INTO local_application_state " +
+                "(id, stateVersion, lastSynchronizationTimestamp, initialized, " +
+                "installationId, identityCreatedAtEpochMillis, enrollmentState, connectionState) " +
+                "VALUES (1, 9, 77, 1, 'stable-id', 123, 'ENROLLED', 'CONNECTED')",
+        )
+
+        ParentoDatabase.MIGRATION_2_3.migrate(database)
+
+        database.query(
+            "SELECT stateVersion, lastSynchronizationTimestamp, initialized, " +
+                "installationId, identityCreatedAtEpochMillis, enrollmentState " +
+                "FROM local_application_state WHERE id = 1",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(9, cursor.getInt(0))
+            assertEquals(77L, cursor.getLong(1))
+            assertEquals(1, cursor.getInt(2))
+            assertEquals("stable-id", cursor.getString(3))
+            assertEquals(123L, cursor.getLong(4))
+            assertEquals("ENROLLED", cursor.getString(5))
+        }
+
+        database.close()
+    }
 }
