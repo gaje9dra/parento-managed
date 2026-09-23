@@ -61,9 +61,31 @@ class ConfigurationTest {
     }
 
     @Test
+    fun backendUrlRejectsEmbeddedCredentials() {
+        assertThrows(IllegalArgumentException::class.java) {
+            config(backendBaseUrl = "https://user:password@backend.example.invalid")
+        }
+    }
+
+    @Test
+    fun backendUrlRejectsUnexpectedPath() {
+        assertThrows(IllegalArgumentException::class.java) {
+            config(backendBaseUrl = "https://backend.example.invalid/api")
+        }
+    }
+
+    @Test
     fun productionDoesNotAllowDebugDiagnostics() {
         val result = config(AppEnvironment.PRODUCTION, requireHttps = true)
         assertFalse(result.security.allowDebugDiagnostics && result.isProduction)
+    }
+
+    @Test
+    fun productionLoggingIsExpectedToBeRestricted() {
+        val result = config(AppEnvironment.PRODUCTION, requireHttps = true)
+            .copy(logging = LoggingConfig(LogLevel.WARN, enabled = true))
+        assertEquals(LogLevel.WARN, result.logging.minimumLevel)
+        assertTrue(result.logging.enabled)
     }
 
     @Test
