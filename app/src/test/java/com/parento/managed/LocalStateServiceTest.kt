@@ -82,6 +82,42 @@ class LocalStateServiceTest {
     }
 
     @Test
+    fun malformedPersistedIdentity_isRejectedAsStorageFailure() = runBlocking {
+        val service = LocalStateService(
+            FakeLocalStateRepository(
+                state = LocalApplicationState(
+                    initialized = true,
+                    installationId = "not-a-uuid",
+                    identityCreatedAtEpochMillis = 1L,
+                ),
+            ),
+        )
+
+        assertEquals(
+            OperationResult.Failure(ManagedError.STORAGE_FAILURE),
+            service.initialize(),
+        )
+    }
+
+    @Test
+    fun invalidPersistedIdentityTimestamp_isRejectedAsStorageFailure() = runBlocking {
+        val service = LocalStateService(
+            FakeLocalStateRepository(
+                state = LocalApplicationState(
+                    initialized = true,
+                    installationId = "550e8400-e29b-41d4-a716-446655440000",
+                    identityCreatedAtEpochMillis = 0L,
+                ),
+            ),
+        )
+
+        assertEquals(
+            OperationResult.Failure(ManagedError.STORAGE_FAILURE),
+            service.initialize(),
+        )
+    }
+
+    @Test
     fun repositoryFailure_isReturnedWithoutInventingEnrollment() = runBlocking {
         val service = LocalStateService(FakeLocalStateRepository(readResult = OperationResult.Failure(ManagedError.STORAGE_FAILURE)))
         assertEquals(OperationResult.Failure(ManagedError.STORAGE_FAILURE), service.initialize())
