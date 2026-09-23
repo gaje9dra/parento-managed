@@ -2,7 +2,6 @@ package com.parento.managed.data
 
 import com.parento.managed.data.local.LocalApplicationStateDao
 import com.parento.managed.data.local.LocalApplicationStateEntity
-import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
@@ -21,7 +20,6 @@ interface LocalStateRepository {
     suspend fun getOrCreateIdentity(): OperationResult<LocalDeviceIdentity>
     suspend fun initializeLocalState(): OperationResult<LocalApplicationState>
     suspend fun updateEnrollmentState(state: EnrollmentState): OperationResult<Unit>
-    suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit>
 }
 
 class RoomLocalStateRepository(
@@ -104,17 +102,6 @@ class RoomLocalStateRepository(
             }
         }
 
-    override suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit> =
-        stateMutex.withLock {
-            runStorageOperation {
-                val current = dao.read()?.toDomain() ?: LocalApplicationState()
-                if (!current.connectionState.canTransitionTo(state)) {
-                    throw InvalidLocalStateTransitionException()
-                }
-                dao.upsert(current.copy(connectionState = state).toEntity())
-            }
-        }
-
     private suspend fun <T> runStorageOperation(operation: suspend () -> T): OperationResult<T> =
         try {
             OperationResult.Success(operation())
@@ -136,8 +123,7 @@ private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState =
         identityCreatedAtEpochMillis = identityCreatedAtEpochMillis,
         enrollmentState = runCatching { EnrollmentState.valueOf(enrollmentState) }
             .getOrElse { throw IllegalStateException("Invalid persisted enrollment state.") },
-        connectionState = runCatching { ConnectionState.valueOf(connectionState) }
-            .getOrElse { throw IllegalStateException("Invalid persisted connection state.") },
+        connectionState = com.parento.managed.domain.ConnectionState.UNKNOWN,
     )
 
 private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
@@ -148,5 +134,4 @@ private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
         installationId = installationId,
         identityCreatedAtEpochMillis = identityCreatedAtEpochMillis,
         enrollmentState = enrollmentState.name,
-        connectionState = connectionState.name,
     )
