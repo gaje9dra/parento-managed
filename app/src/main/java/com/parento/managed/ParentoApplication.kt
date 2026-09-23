@@ -1,0 +1,19 @@
+package com.parento.managed
+
+import android.app.Application
+import com.parento.managed.config.ManagedApplicationConfig
+import com.parento.managed.logging.AndroidManagedLogger
+import com.parento.managed.logging.LogLevel
+
+class ParentoApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        ManagedApplicationConfig.initialize()
+        val config = ManagedApplicationConfig.get()
+        AndroidManagedLogger(config).log(
+            LogLevel.INFO,
+            "Parento Managed initialized.",
+        )
+    }
+}
