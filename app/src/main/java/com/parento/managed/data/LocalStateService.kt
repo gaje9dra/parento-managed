@@ -77,10 +77,16 @@ class LocalStateService(
         OperationResult.Success(runtimeConnectionState.value)
 
     suspend fun setConnectionState(state: ConnectionState): OperationResult<Unit> =
-        when (val result = repository.updateConnectionState(state)) {
+        when (val result = repository.read()) {
             is OperationResult.Success -> {
-                runtimeConnectionState.value = state
-                result
+                val current = result.value ?: LocalApplicationState()
+                when (val writeResult = repository.write(current.copy(connectionState = state))) {
+                    is OperationResult.Success -> {
+                        runtimeConnectionState.value = state
+                        writeResult
+                    }
+                    is OperationResult.Failure -> writeResult
+                }
             }
             is OperationResult.Failure -> result
         }
