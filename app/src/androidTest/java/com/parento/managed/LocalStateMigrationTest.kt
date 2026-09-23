@@ -1,7 +1,9 @@
 package com.parento.managed
 
 import android.content.Context
-import androidx.room.Room
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteOpenHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.parento.managed.data.local.ParentoDatabase
@@ -14,33 +16,48 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LocalStateMigrationTest {
-    private lateinit var database: ParentoDatabase
+    private lateinit var helper: SupportSQLiteOpenHelper
 
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, ParentoDatabase::class.java).build()
+        val callback = object : SupportSQLiteOpenHelper.Callback(1) {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE local_application_state (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        stateVersion INTEGER NOT NULL,
+                        lastSynchronizationTimestamp INTEGER,
+                        initialized INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+
+            override fun onUpgrade(
+                db: SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }
+
+        helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(null)
+                .callback(callback)
+                .build(),
+        )
     }
 
     @After
     fun tearDown() {
-        database.close()
+        helper.close()
     }
 
     @Test
     fun migration1To2_preservesExistingStateAndAddsSafeDefaults() {
-        val sqlite = database.openHelper.writableDatabase
-
-        sqlite.execSQL(
-            """
-            CREATE TABLE local_application_state (
-                id INTEGER NOT NULL PRIMARY KEY,
-                stateVersion INTEGER NOT NULL,
-                lastSynchronizationTimestamp INTEGER,
-                initialized INTEGER NOT NULL
-            )
-            """.trimIndent(),
-        )
+        val sqlite = helper.writableDatabase
         sqlite.execSQL(
             """
             INSERT INTO local_application_state
