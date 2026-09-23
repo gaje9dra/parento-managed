@@ -15,7 +15,7 @@ The companion repositories are not modified by this phase:
 
 Phase 2.5 — Local Persistence Security, Testing & Phase 2 Completion
 
-Phase 2.3 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
+Phase 2.5 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
 
 No backend communication, authentication, enrollment workflow, remote commands, monitoring, screen sharing, camera, microphone, audio, app blocking, website blocking, or policy enforcement is implemented.
 
@@ -130,6 +130,7 @@ Phase 2.5 adds:
 - repeated identity initialization tests
 - UUID-format verification
 - persistence/observation tests
+- malformed persisted identity recovery tests
 
 Existing isolated Room migration tests remain in place.
 
