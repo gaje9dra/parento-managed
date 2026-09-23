@@ -160,7 +160,7 @@ app/
           DeviceStatus.kt
           EnrollmentState.kt
           ManagedDevice.kt
-          ManagedError.kt / OperationResult.kt
+          OperationResult.kt
           OperationResult.kt
           PolicyState.kt
         logging/
