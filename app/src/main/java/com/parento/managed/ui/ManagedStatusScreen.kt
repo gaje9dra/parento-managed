@@ -8,12 +8,10 @@ import androidx.core.view.setPadding
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textview.MaterialTextView
 import com.parento.managed.R
-import com.parento.managed.navigation.RootDestination
 
 class ManagedStatusScreen(
     context: Context,
     private val onRetry: () -> Unit,
-    private val onDestination: (RootDestination) -> Unit,
 ) {
     private val root = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
