@@ -35,10 +35,10 @@ class ManagedStatusViewModel(
         }
 
         val connectionLabel = when (connectionState) {
+            ConnectionState.UNKNOWN -> "Connection unknown"
             ConnectionState.DISCONNECTED -> "Disconnected"
             ConnectionState.CONNECTING -> "Connection pending"
             ConnectionState.CONNECTED -> "Connected"
-            ConnectionState.ERROR -> "Connection error"
         }
 
         updateState(
