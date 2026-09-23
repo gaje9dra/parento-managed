@@ -9,6 +9,7 @@ import com.parento.managed.data.RoomLocalStateRepository
 import com.parento.managed.data.local.ParentoDatabase
 import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.EnrollmentState
+import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -49,16 +50,26 @@ class LocalStateRepositoryInstrumentedTest {
 
         assertEquals(first, second)
         assertNotEquals("", first.installationId)
+        assertTrue(runCatching { java.util.UUID.fromString(first.installationId) }.isSuccess)
+    }
+
+    @Test
+    fun repeatedIdentityInitialization_preservesSingleIdentity() = runBlocking {
+        repeat(20) { repository.getOrCreateIdentity() }
+
+        val identity = (repository.getOrCreateIdentity() as OperationResult.Success).value
+        val state = (repository.read() as OperationResult.Success).value
+
+        assertEquals(identity.installationId, state?.installationId)
+        assertEquals(identity.createdAtEpochMillis, state?.identityCreatedAtEpochMillis)
     }
 
     @Test
     fun writeAndRead_roundTripState() = runBlocking {
         val expected = LocalApplicationState(
-            stateVersion = 1,
-            lastSynchronizationTimestamp = 1234L,
             initialized = true,
-            enrollmentState = EnrollmentState.ENROLLED,
-            connectionState = ConnectionState.CONNECTED,
+            enrollmentState = EnrollmentState.UNENROLLED,
+            connectionState = ConnectionState.UNKNOWN,
         )
 
         assertEquals(OperationResult.Success(Unit), repository.write(expected))
@@ -66,61 +77,57 @@ class LocalStateRepositoryInstrumentedTest {
     }
 
     @Test
-    fun updateEnrollmentState_persists() = runBlocking {
-        assertEquals(
-            OperationResult.Success(Unit),
-            repository.updateEnrollmentState(EnrollmentState.ENROLLING),
-        )
+    fun updateEnrollmentState_persistsValidTransition() = runBlocking {
+        assertEquals(OperationResult.Success(Unit), repository.updateEnrollmentState(EnrollmentState.ENROLLING))
+        assertEquals(OperationResult.Success(Unit), repository.updateEnrollmentState(EnrollmentState.ENROLLED))
 
         val state = (repository.read() as OperationResult.Success).value
-        assertEquals(EnrollmentState.ENROLLING, state?.enrollmentState)
+        assertEquals(EnrollmentState.ENROLLED, state?.enrollmentState)
     }
 
     @Test
-    fun updateConnectionState_persists() = runBlocking {
+    fun updateEnrollmentState_rejectsInvalidTransition() = runBlocking {
+        val result = repository.updateEnrollmentState(EnrollmentState.CONNECTED)
+
+        assertEquals(OperationResult.Failure(ManagedError.INVALID_STATE), result)
         assertEquals(
-            OperationResult.Success(Unit),
-            repository.updateConnectionState(ConnectionState.CONNECTING),
+            EnrollmentState.UNENROLLED,
+            (repository.read() as OperationResult.Success).value?.enrollmentState,
         )
+    }
+
+    @Test
+    fun updateConnectionState_persistsValidTransition() = runBlocking {
+        assertEquals(OperationResult.Success(Unit), repository.updateConnectionState(ConnectionState.CONNECTING))
+        assertEquals(OperationResult.Success(Unit), repository.updateConnectionState(ConnectionState.CONNECTED))
 
         val state = (repository.read() as OperationResult.Success).value
-        assertEquals(ConnectionState.CONNECTING, state?.connectionState)
+        assertEquals(ConnectionState.CONNECTED, state?.connectionState)
+    }
+
+    @Test
+    fun updateConnectionState_rejectsInvalidTransition() = runBlocking {
+        val result = repository.updateConnectionState(ConnectionState.CONNECTED)
+
+        assertEquals(OperationResult.Failure(ManagedError.INVALID_STATE), result)
+        assertEquals(
+            ConnectionState.UNKNOWN,
+            (repository.read() as OperationResult.Success).value?.connectionState,
+        )
     }
 
     @Test
     fun clear_removesState() = runBlocking {
         repository.write(LocalApplicationState(initialized = true))
-
         assertEquals(OperationResult.Success(Unit), repository.clear())
         assertEquals(OperationResult.Success(null), repository.read())
     }
 
     @Test
     fun observe_emitsPersistedState() = runBlocking {
-        repository.write(
-            LocalApplicationState(
-                initialized = true,
-                enrollmentState = EnrollmentState.ENROLLED,
-                connectionState = ConnectionState.CONNECTED,
-            ),
-        )
+        repository.write(LocalApplicationState(initialized = true))
 
         val result = repository.observe().first()
-        assertEquals(
-            OperationResult.Success(
-                LocalApplicationState(
-                    initialized = true,
-                    enrollmentState = EnrollmentState.ENROLLED,
-                    connectionState = ConnectionState.CONNECTED,
-                ),
-            ),
-            result,
-        )
-    }
-
-    @Test
-    fun storageContract_exposesSafeResultType() = runBlocking {
-        val result = repository.read()
-        assertTrue(result is OperationResult.Success)
+        assertEquals(OperationResult.Success(LocalApplicationState(initialized = true)), result)
     }
 }
