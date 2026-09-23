@@ -126,8 +126,15 @@ class RoomLocalStateRepository(
 
 private class InvalidLocalStateTransitionException : IllegalStateException()
 
-private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState =
-    LocalApplicationState(
+private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState {
+    if (!installationId.isNullOrBlank() && !isValidInstallationId(installationId)) {
+        throw IllegalStateException("Invalid persisted installation identity.")
+    }
+    if (identityCreatedAtEpochMillis != null && identityCreatedAtEpochMillis <= 0L) {
+        throw IllegalStateException("Invalid persisted identity timestamp.")
+    }
+
+    return LocalApplicationState(
         stateVersion = stateVersion,
         lastSynchronizationTimestamp = lastSynchronizationTimestamp,
         initialized = initialized,
@@ -137,6 +144,7 @@ private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState =
             .getOrElse { throw IllegalStateException("Invalid persisted enrollment state.") },
         connectionState = com.parento.managed.domain.ConnectionState.UNKNOWN,
     )
+}
 
 private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
     LocalApplicationStateEntity(
