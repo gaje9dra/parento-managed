@@ -1,5 +1,6 @@
 package com.parento.managed
 
+import androidx.lifecycle.SavedStateHandle
 import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.DeviceStatus
 import com.parento.managed.domain.ManagedError
@@ -43,6 +44,24 @@ class ManagedStatusViewModelTest {
                 true,
             ),
             viewModel.uiState,
+        )
+    }
+
+    @Test
+    fun state_isRestoredFromSavedStateHandle() {
+        val savedState = SavedStateHandle()
+        val original = ManagedStatusViewModel(savedState)
+        original.showDeviceState(DeviceStatus.CONNECTED, ConnectionState.CONNECTED)
+
+        val recreated = ManagedStatusViewModel(savedState)
+
+        assertEquals(
+            ManagedUiState.Content(
+                DeviceStatus.CONNECTED,
+                "Managed and connected",
+                "Connected",
+            ),
+            recreated.uiState,
         )
     }
 }
