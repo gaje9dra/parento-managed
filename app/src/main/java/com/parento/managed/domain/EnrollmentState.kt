@@ -1,8 +1,11 @@
 package com.parento.managed.domain
 
 enum class EnrollmentState {
-    NOT_ENROLLED,
+    UNENROLLED,
     ENROLLING,
     ENROLLED,
+    CONNECTED,
+    DISCONNECTED,
     REVOKED,
+    ERROR,
 }
