@@ -3,7 +3,6 @@ package com.parento.managed.ui
 import android.content.Context
 import android.graphics.Typeface
 import android.view.View
-import android.widget.Button
 import android.widget.LinearLayout
 import androidx.core.view.setPadding
 import com.google.android.material.progressindicator.LinearProgressIndicator
@@ -19,7 +18,6 @@ class ManagedStatusScreen(
     private val root = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(context.resources.getDimensionPixelSize(R.dimen.screen_padding))
-        setBackgroundColor(context.getColor(android.R.color.background_light))
     }
 
     private val title = MaterialTextView(context).apply {
@@ -30,7 +28,6 @@ class ManagedStatusScreen(
 
     private val subtitle = MaterialTextView(context).apply {
         textSize = 16f
-        setPadding(0, 12, 0, 20)
     }
 
     private val content = LinearLayout(context).apply {
@@ -58,21 +55,18 @@ class ManagedStatusScreen(
 
     private fun renderLoading() {
         subtitle.text = context.getString(R.string.loading_state)
-        val progress = LinearProgressIndicator(context).apply {
-            isIndeterminate = true
-            contentDescription = context.getString(R.string.loading_description)
-        }
-        content.addView(progress, LinearLayout.LayoutParams(-1, -2))
+        content.addView(
+            LinearProgressIndicator(context).apply {
+                isIndeterminate = true
+                contentDescription = context.getString(R.string.loading_description)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
     }
 
     private fun renderUnenrolled() {
         subtitle.text = context.getString(R.string.unenrolled_state)
         addMessage(context.getString(R.string.unenrolled_message))
-        addAction(
-            text = context.getString(R.string.enrollment_placeholder_action),
-            enabled = false,
-        )
-        onDestination(RootDestination.DEVICE_STATUS)
     }
 
     private fun renderContent(state: ManagedUiState.Content) {
@@ -86,7 +80,7 @@ class ManagedStatusScreen(
         subtitle.text = context.getString(R.string.error_state)
         addMessage(state.message)
         if (state.canRetry) {
-            addAction(context.getString(R.string.retry), enabled = true)
+            addAction(context.getString(R.string.retry))
         }
     }
 
@@ -95,18 +89,16 @@ class ManagedStatusScreen(
             MaterialTextView(context).apply {
                 text = message
                 textSize = 17f
-                setPadding(0, 8, 0, 8)
             },
             LinearLayout.LayoutParams(-1, -2),
         )
     }
 
-    private fun addAction(text: String, enabled: Boolean) {
+    private fun addAction(text: String) {
         content.addView(
-            Button(context).apply {
+            com.google.android.material.button.MaterialButton(context).apply {
                 this.text = text
-                isEnabled = enabled
-                setOnClickListener { if (enabled) onRetry() }
+                setOnClickListener { onRetry() }
                 minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
             },
             LinearLayout.LayoutParams(-1, -2),
