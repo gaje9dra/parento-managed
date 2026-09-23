@@ -95,12 +95,12 @@ Run lint:
 ./gradlew lint
 
 Build the test environment variant:
-./gradlew assembleTest
+gradle assembleTesting
 
 Build release:
 ./gradlew assembleRelease
 
-On Windows, use gradlew.bat instead of ./gradlew.
+This repository does not currently commit a Gradle wrapper. Use Gradle 8.13 (or configure Android Studio to use the project-compatible Gradle version).
 
 No secrets are required for the current phase.
 
