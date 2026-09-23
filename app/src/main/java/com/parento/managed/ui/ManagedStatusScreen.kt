@@ -10,7 +10,7 @@ import com.google.android.material.textview.MaterialTextView
 import com.parento.managed.R
 
 class ManagedStatusScreen(
-    context: Context,
+    private val context: Context,
     private val onRetry: () -> Unit,
 ) {
     private val root = LinearLayout(context).apply {
