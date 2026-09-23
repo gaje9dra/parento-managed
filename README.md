@@ -185,3 +185,62 @@ Phase 1.3 preserves the existing versions rather than upgrading unrelated toolin
 - JUnit: 4.13.2
 
 No new Gradle dependency was introduced in Phase 1.3.
+
+
+## Phase 1.4 — Application Lifecycle, Navigation & UI Shell
+
+Phase 1.4 establishes the managed application's UI/application-shell foundation while preserving the Phase 1.1–1.3 architecture.
+
+### UI architecture
+
+The application flow is:
+
+    ParentoApplication
+        ↓
+    ManagedApplicationConfig
+        ↓
+    MainActivity
+        ↓
+    ManagedStatusScreen
+        ↓
+    ManagedUiState / ManagedStatusViewModel
+        ↓
+    Existing domain state contracts
+
+The root navigation boundary is represented by RootDestination and RootNavigator. Current destinations are DEVICE_STATUS, ENROLLMENT_PLACEHOLDER, and ERROR. The enrollment destination is a future navigation capability only; enrollment itself is not implemented.
+
+The UI uses Android Views and existing Material Components because the repository did not previously establish a Compose dependency. No Compose stack was introduced solely for this phase.
+
+### UI states
+
+ManagedUiState is a sealed state model containing Loading, Unenrolled, Content, and Error. ManagedStatusViewModel owns screen state rather than the Activity or individual views. State transitions are directly unit-testable.
+
+The initial state is intentionally Unenrolled; the application does not claim that the device is enrolled or connected.
+
+### Application lifecycle
+
+MainActivity obtains the ViewModel through the Android lifecycle and re-renders from the ViewModel state during onCreate and onStart. No Activity, View, or Context reference is stored by the ViewModel.
+
+No background device-management work is started.
+
+### Screens
+
+The current UI shell provides one user-facing status screen with representations for loading, unenrolled, content/managed status, and safe error states. Future enrollment and error destinations exist only as navigation boundaries.
+
+The status shell displays the application name, version, management state, connection state, and a neutral statement that device-management features are not active in this phase.
+
+### Accessibility and responsive behavior
+
+The shell uses normal Android layouts rather than absolute positioning, provides a meaningful loading content description, uses a minimum 48dp action target, and relies on Android text rendering so user font scaling remains supported.
+
+No information is communicated through color alone. System-bar dimensions are not hard-coded.
+
+### Testing
+
+Phase 1.4 adds unit coverage for root destination stability, default unenrolled UI state, loading/content/error ViewModel transitions, and typed device and connection state presentation.
+
+No fake backend or device-management behavior is used for tests.
+
+### Permissions and future functionality
+
+Phase 1.4 adds no sensitive Android permissions and does not implement enrollment, backend communication, realtime transport, location, camera, microphone, screen capture, application blocking, website filtering, device locking, remote wipe, Device Owner provisioning, covert monitoring, or security bypasses.
