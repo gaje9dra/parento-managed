@@ -2,8 +2,8 @@ package com.parento.managed.data
 
 import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.EnrollmentState
-import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
+import com.parento.managed.domain.canTransitionTo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -14,6 +14,7 @@ class LocalStateService(
     private val repository: LocalStateRepository,
 ) {
     private val initializationMutex = Mutex()
+    private val connectionMutex = Mutex()
     private val runtimeConnectionState = MutableStateFlow(ConnectionState.UNKNOWN)
 
     suspend fun initialize(): OperationResult<LocalApplicationState> =
@@ -37,9 +38,9 @@ class LocalStateService(
             when (initialized) {
                 is OperationResult.Success -> {
                     runtimeConnectionState.value = ConnectionState.UNKNOWN
-                    OperationResult.Success(initialized.value.copy(
-                        connectionState = ConnectionState.UNKNOWN,
-                    ))
+                    OperationResult.Success(
+                        initialized.value.copy(connectionState = ConnectionState.UNKNOWN),
+                    )
                 }
                 is OperationResult.Failure -> initialized
             }
@@ -77,23 +78,17 @@ class LocalStateService(
         OperationResult.Success(runtimeConnectionState.value)
 
     suspend fun setConnectionState(state: ConnectionState): OperationResult<Unit> =
-        when (val result = repository.read()) {
-            is OperationResult.Success -> {
-                val current = result.value ?: LocalApplicationState()
-                when (val writeResult = repository.write(current.copy(connectionState = state))) {
-                    is OperationResult.Success -> {
-                        runtimeConnectionState.value = state
-                        writeResult
-                    }
-                    is OperationResult.Failure -> writeResult
-                }
+        connectionMutex.withLock {
+            val current = runtimeConnectionState.value
+            if (!current.canTransitionTo(state)) {
+                return@withLock OperationResult.Failure(
+                    com.parento.managed.domain.ManagedError.INVALID_STATE,
+                )
             }
-            is OperationResult.Failure -> result
+            runtimeConnectionState.value = state
+            OperationResult.Success(Unit)
         }
 
     suspend fun recoverMissingIdentity(): OperationResult<LocalDeviceIdentity> =
-        when (val result = repository.getOrCreateIdentity()) {
-            is OperationResult.Success -> result
-            is OperationResult.Failure -> result
-        }
+        repository.getOrCreateIdentity()
 }
