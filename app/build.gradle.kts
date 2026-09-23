@@ -13,6 +13,15 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField("boolean", "PARENTO_FEATURE_ENROLLMENT", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_REALTIME", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_LOCATION", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_SCREEN_SHARING", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_AUDIO", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_APPLICATION_MANAGEMENT", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_WEBSITE_FILTERING", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_DEVICE_RESTRICTIONS", "false")
     }
 
     buildFeatures {
