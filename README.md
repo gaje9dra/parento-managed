@@ -52,7 +52,7 @@ Runtime-only state includes:
 - navigation state
 - transient connection activity
 
-A persisted connection state is only the last known state. It does not prove that a live backend connection exists after application restart.
+Connection state is runtime-only. It resets to UNKNOWN after process recreation and is never treated as proof of a live backend connection.
 
 ## Local lifecycle state
 
