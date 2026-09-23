@@ -13,7 +13,7 @@ The companion repositories are not modified by this phase:
 
 ## Current phase
 
-Phase 2.3 — Persistence Integrity & State Repository Contracts
+Phase 2.5 — Local Persistence Security, Testing & Phase 2 Completion
 
 Phase 2.3 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
 
@@ -43,10 +43,10 @@ Persisted state includes:
 - application-scoped installation identity
 - identity creation timestamp
 - enrollment lifecycle state
-- last-known connection state
 - initialization and synchronization metadata
 
 Runtime-only state includes:
+- current connection state
 - loading indicators
 - temporary error presentation
 - navigation state
@@ -92,7 +92,7 @@ Identity initialization is serialized within the repository to prevent duplicate
 
 Room database: parento-managed.db
 
-Current schema version: 2
+Current schema version: 3
 
 Entity:
 - LocalApplicationStateEntity
@@ -102,7 +102,7 @@ DAO:
 
 The singleton primary key keeps local application state to one record.
 
-The existing explicit MIGRATION_1_2 is preserved. No destructive migration is enabled.
+The explicit MIGRATION_1_2 and MIGRATION_2_3 paths are preserved. MIGRATION_2_3 removes the previously persisted runtime connection column without losing restart-safe state. No destructive migration is enabled.
 
 ## Error handling
 
@@ -124,7 +124,7 @@ No sensitive Android permissions were added for Phase 2.3.
 
 ## Testing
 
-Phase 2.3 adds:
+Phase 2.5 adds:
 - lifecycle transition contract tests
 - invalid-transition repository tests
 - repeated identity initialization tests
@@ -170,3 +170,14 @@ The following remain intentionally unimplemented:
 - covert monitoring or security bypasses
 
 Future sensitive capabilities must use legitimate Android/Android Enterprise APIs and explicit authorization.
+
+
+## Phase 2.5 completion audit
+
+The Phase 2.5 pass reviewed Room initialization, entity/DAO boundaries, repository serialization, local identity stability, persistent/runtime state separation, migration safety, corruption handling, concurrency/idempotency, backup behavior, permissions, manifest security, logging, dependency configuration, and test isolation.
+
+Runtime connection state is deliberately not persisted. After process recreation it starts at UNKNOWN; persisted enrollment and identity state remain available for deterministic startup reconstruction.
+
+The repository does not implement authentication, backend communication, enrollment, realtime communication, FCM, remote commands, monitoring, location, camera, microphone/audio, screen capture, application/website blocking, device restrictions, or remote policies.
+
+Android Room guidance recommends explicit migration paths when preserving existing on-device data and warns that destructive migration can permanently delete data when used as a fallback. This project therefore keeps explicit migrations and does not enable destructive migration. urlAndroid Room migration guidancehttps://developer.android.com/training/data-storage/room/migrating-db-versions
