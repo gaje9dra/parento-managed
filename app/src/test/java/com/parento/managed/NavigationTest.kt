@@ -12,3 +12,10 @@ class NavigationTest {
         assertEquals(RootDestination.ERROR, RootDestination.valueOf("ERROR"))
     }
 }
+
+    @Test
+    fun navigator_changesDestination() {
+        val navigator = com.parento.managed.navigation.RootNavigator()
+        navigator.navigate(RootDestination.ERROR)
+        assertEquals(RootDestination.ERROR, navigator.currentDestination)
+    }
