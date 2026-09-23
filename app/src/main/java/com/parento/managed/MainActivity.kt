@@ -19,7 +19,6 @@ class MainActivity : AppCompatActivity() {
         screen = ManagedStatusScreen(
             context = this,
             onRetry = { viewModel.showUnenrolled() },
-            onDestination = { destination -> navigator.navigate(destination) },
         )
 
         setContentView(screen.view())
