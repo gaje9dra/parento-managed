@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "phase-2-1-managed-local-state",
+    "entities": [
+      {
+        "tableName": "local_application_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `local_application_state` (`id` INTEGER NOT NULL, `stateVersion` INTEGER NOT NULL, `lastSynchronizationTimestamp` INTEGER, `initialized` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {"fieldPath":"id","columnName":"id","affinity":"INTEGER","notNull":true},
+          {"fieldPath":"stateVersion","columnName":"stateVersion","affinity":"INTEGER","notNull":true},
+          {"fieldPath":"lastSynchronizationTimestamp","columnName":"lastSynchronizationTimestamp","affinity":"INTEGER","notNull":false},
+          {"fieldPath":"initialized","columnName":"initialized","affinity":"INTEGER","notNull":true}
+        ],
+        "primaryKey":{"columnNames":["id"],"autoGenerate":false},
+        "indices":[],
+        "foreignKeys":[]
+      }
+    ],
+    "views": [],
+    "setupQueries": []
+  }
+}
