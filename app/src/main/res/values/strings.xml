@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Parento Managed</string>
+    <string name="phase_status">Device management setup will be available in a later phase.</string>
+</resources>
