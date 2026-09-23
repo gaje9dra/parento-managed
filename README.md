@@ -333,3 +333,69 @@ Future requirements for `parento-backend` and `parento-admin` are documented onl
 This application is intended for authorized device management. Future sensitive capabilities must use legitimate Android/Android Enterprise APIs and required platform authorization.
 
 The following remain deferred: authentication, enrollment, QR pairing, backend API integration, WebSockets, FCM, location, camera, microphone/audio capture, screen capture/sharing, application blocking, website/DNS/VPN filtering, Device Owner/Android Enterprise provisioning, device locking, remote wipe, policy enforcement, covert monitoring, surveillance, and security bypasses.
+
+
+## Phase 2.1 — Local Persistence
+
+Phase 2.1 establishes the managed application's local persistence foundation only.
+
+### Persistence technology
+
+The project uses Android Room with SQLite as its local relational persistence technology. No second database framework was introduced.
+
+### Local data architecture
+
+UI → ViewModel → Domain / Use Case → Repository → Local Data Source → Room Database
+
+The UI does not access Room directly. Room has no UI dependencies.
+
+### Database location and initialization
+
+The database is stored in the application's private Room/SQLite storage as `parento-managed.db`. `LocalDatabaseProvider` initializes it once using the application context.
+
+The initial schema contains only `LocalApplicationStateEntity`, representing minimal application/device-management metadata:
+
+- local state version
+- last synchronization timestamp
+- local initialization state
+
+No enrollment, authentication, password, JWT, location, camera, microphone, audio, screen, application-blocking, website-blocking, remote-command, policy, or audit entities were created.
+
+### Repository
+
+`LocalStateRepository` abstracts reading, writing, clearing, and observing persisted application state. `RoomLocalStateRepository` maps Room entities to domain data and converts storage failures into `ManagedError.STORAGE_FAILURE` rather than exposing raw database exceptions to UI.
+
+Production database operations use suspend DAO methods or Flow. No production main-thread database access is introduced.
+
+### Migrations
+
+Room schema versioning is enabled at version 1. Schema export is configured under `schemas/`. No fake future migrations are included. Future schema changes must increment the database version and provide an explicit deterministic migration. Destructive migration is not silently enabled.
+
+### Testing
+
+JVM tests cover the local state model and storage error contract.
+
+Android instrumentation tests use an isolated in-memory Room database and cover:
+
+- initialization/read
+- write/read round trip
+- update
+- clear
+- reactive observation
+- safe storage result handling
+
+The tests never depend on the developer's real persistent application database.
+
+### Security
+
+Phase 2.1 does not create or store credentials, tokens, passwords, or other secrets. Storage contents are not logged. Android backup remains disabled. No sensitive Android permissions were added.
+
+Future sensitive local data must use appropriate Android secure-storage/cryptographic facilities in the relevant phase. No custom cryptographic protocol is introduced here.
+
+### Development/test reset
+
+Tests use an in-memory database. There is no production behavior that automatically deletes management state, no anti-uninstall behavior, and no covert persistence mechanism.
+
+### Backend boundary
+
+This phase does not implement REST clients, authentication requests, enrollment API calls, WebSockets, FCM, backend synchronization, or device commands. Backend requirements are documented only and belong to later phases/repositories.
