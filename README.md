@@ -94,8 +94,8 @@ Run unit tests:
 Run lint:
 ./gradlew lint
 
-Build the test environment variant:
-gradle assembleTesting
+Build the verification environment variant:
+gradle assembleVerification
 
 Build release:
 ./gradlew assembleRelease
