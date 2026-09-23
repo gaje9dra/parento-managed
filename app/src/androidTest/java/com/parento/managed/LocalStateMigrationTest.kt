@@ -56,7 +56,7 @@ class LocalStateMigrationTest {
     }
 
     @Test
-    fun migration1To2_preservesExistingStateAndAddsSafeDefaults() {
+    fun migration1To3_preservesExistingStateAndRemovesRuntimeConnection() {
         val sqlite = helper.writableDatabase
         sqlite.execSQL(
             """
@@ -67,20 +67,25 @@ class LocalStateMigrationTest {
         )
 
         ParentoDatabase.MIGRATION_1_2.migrate(sqlite)
+        sqlite.execSQL(
+            "UPDATE local_application_state SET installationId = 'stable-id', " +
+                "identityCreatedAtEpochMillis = 123, enrollmentState = 'ENROLLED', " +
+                "connectionState = 'CONNECTED' WHERE id = 1",
+        )
+        ParentoDatabase.MIGRATION_2_3.migrate(sqlite)
 
         sqlite.query(
             "SELECT stateVersion, lastSynchronizationTimestamp, initialized, " +
-                "installationId, identityCreatedAtEpochMillis, enrollmentState, connectionState " +
+                "installationId, identityCreatedAtEpochMillis, enrollmentState " +
                 "FROM local_application_state WHERE id = 1",
         ).use { cursor ->
             assertTrue(cursor.moveToFirst())
             assertEquals(7, cursor.getInt(0))
             assertEquals(1234L, cursor.getLong(1))
             assertEquals(1, cursor.getInt(2))
-            assertEquals(null, cursor.getString(3))
-            assertEquals(null, cursor.getLongOrNull(4))
-            assertEquals("UNENROLLED", cursor.getString(5))
-            assertEquals("UNKNOWN", cursor.getString(6))
+            assertEquals("stable-id", cursor.getString(3))
+            assertEquals(123L, cursor.getLong(4))
+            assertEquals("ENROLLED", cursor.getString(5))
         }
     }
 }
