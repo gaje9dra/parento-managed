@@ -244,3 +244,92 @@ No fake backend or device-management behavior is used for tests.
 ### Permissions and future functionality
 
 Phase 1.4 adds no sensitive Android permissions and does not implement enrollment, backend communication, realtime transport, location, camera, microphone, screen capture, application blocking, website filtering, device locking, remote wipe, Device Owner provisioning, covert monitoring, or security bypasses.
+
+## Phase 1.5 — Security Baseline, Testing Infrastructure & Phase 1 Completion
+
+Phase 1.5 hardens the existing managed-app foundation without implementing future device-management functionality.
+
+### Security review
+
+- The manifest exposes only the required launcher Activity.
+- No camera, microphone, location, accessibility, VPN, notification-listener, Device Owner, storage, or other future sensitive permissions were added.
+- Global cleartext traffic remains disabled.
+- Application backup remains disabled.
+- No production credentials or management secrets are committed.
+- Backend configuration is centralized and production requires HTTPS.
+- Backend URLs reject embedded credentials and unexpected path/query/fragment data.
+- Production debug diagnostics remain disabled.
+- Future management feature flags remain disabled.
+
+### Lifecycle
+
+`ManagedStatusViewModel` owns UI state and has no Activity, View, or Context reference.
+
+`SavedStateHandle` persists the current Phase 1 UI state representation so Activity recreation and process recreation can restore a valid state. Invalid saved state safely falls back to the neutral `Unenrolled` state.
+
+No persistent background service or uncontrolled background operation was introduced.
+
+### Navigation and UI
+
+The existing `RootDestination` / `RootNavigator` boundary remains intact.
+
+The existing state model remains:
+- Loading
+- Unenrolled
+- Content
+- Error
+
+The UI continues to use Android Views and Material Components. No Compose migration was introduced.
+
+Accessibility and responsive behavior remain intentionally lightweight: scalable Android text sizing, loading semantics, standard layouts, and a minimum 48dp action target.
+
+### Testing
+
+Phase 1.5 strengthens JVM tests for:
+- valid/invalid configuration
+- HTTPS enforcement
+- backend URL credential/path/query/fragment rejection
+- environment separation
+- release/debug diagnostic boundaries
+- disabled future feature flags
+- ViewModel state transitions
+- SavedStateHandle state restoration
+- navigation destination stability
+- navigator transitions
+- existing architecture/domain contracts
+
+Tests do not require real backend services, credentials, or device-specific state.
+
+### CI
+
+A minimal GitHub Actions verification workflow is provided at `.github/workflows/verify.yml`.
+
+It runs with JDK 17 and Gradle 8.13 and performs:
+1. unit tests
+2. lint
+3. debug build
+4. release build
+
+It uploads debug and release APK artifacts for verification only. It does not publish or deploy an APK.
+
+The repository does not currently contain a Gradle wrapper, so CI provisions Gradle 8.13 explicitly.
+
+### Documentation
+
+Added:
+- `docs/phase-1-architecture.md`
+- `docs/cross-repository-contracts.md`
+
+These documents distinguish implemented Phase 1 architecture from planned and deferred functionality.
+
+### Cross-repository boundary
+
+Only `gaje9dra/parento-managed` is modified in Phase 1.5.
+
+Future requirements for `parento-backend` and `parento-admin` are documented only. Neither repository is modified.
+
+### Security and management boundary
+
+This application is intended for authorized device management. Future sensitive capabilities must use legitimate Android/Android Enterprise APIs and required platform authorization.
+
+The following remain deferred: authentication, enrollment, QR pairing, backend API integration, WebSockets, FCM, location, camera, microphone/audio capture, screen capture/sharing, application blocking, website/DNS/VPN filtering, Device Owner/Android Enterprise provisioning, device locking, remote wipe, policy enforcement, covert monitoring, surveillance, and security bypasses.
