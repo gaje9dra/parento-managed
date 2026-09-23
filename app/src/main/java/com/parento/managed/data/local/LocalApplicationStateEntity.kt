@@ -13,7 +13,6 @@ data class LocalApplicationStateEntity(
     val installationId: String? = null,
     val identityCreatedAtEpochMillis: Long? = null,
     val enrollmentState: String = "UNENROLLED",
-    val connectionState: String = "UNKNOWN",
 ) {
     companion object {
         const val SINGLETON_ID = 1
