@@ -1,43 +1,57 @@
 package com.parento.managed
 
-import androidx.room.testing.MigrationTestHelper
+import android.content.Context
+import androidx.sqlite.db.SupportSQLiteOpenHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.parento.managed.data.local.ParentoDatabase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.IOException
 
 @RunWith(AndroidJUnit4::class)
 class ParentoDatabaseMigrationTest {
-    @get:Rule
-    val helper = MigrationTestHelper(
-        ApplicationProvider.getApplicationContext(),
-        ParentoDatabase::class.java,
-    )
-
     @Test
-    @Throws(IOException::class)
     fun migrate1To2_preservesExistingStateAndAddsDefaults() {
-        val database = helper.createDatabase("migration-test", 1)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("parento-migration-test")
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(1) {
+                        override fun onCreate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                            database.execSQL(
+                                "CREATE TABLE local_application_state (" +
+                                    "id INTEGER NOT NULL, " +
+                                    "stateVersion INTEGER NOT NULL, " +
+                                    "lastSynchronizationTimestamp INTEGER, " +
+                                    "initialized INTEGER NOT NULL, " +
+                                    "PRIMARY KEY(id))",
+                            )
+                        }
+
+                        override fun onUpgrade(
+                            database: androidx.sqlite.db.SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int,
+                        ) = Unit
+                    },
+                )
+                .build(),
+        )
+
+        val database = helper.writableDatabase
         database.execSQL(
             "INSERT INTO local_application_state " +
                 "(id, stateVersion, lastSynchronizationTimestamp, initialized) " +
                 "VALUES (1, 1, 42, 1)",
         )
-        database.close()
 
-        val migrated = helper.runMigrationsAndValidate(
-            "migration-test",
-            2,
-            true,
-            ParentoDatabase.MIGRATION_1_2,
-        )
+        ParentoDatabase.MIGRATION_1_2.migrate(database)
 
-        migrated.query(
+        database.query(
             "SELECT stateVersion, lastSynchronizationTimestamp, initialized, " +
                 "installationId, identityCreatedAtEpochMillis, enrollmentState, connectionState " +
                 "FROM local_application_state WHERE id = 1",
@@ -52,6 +66,6 @@ class ParentoDatabaseMigrationTest {
             assertEquals("UNKNOWN", cursor.getString(6))
         }
 
-        migrated.close()
+        database.close()
     }
 }
