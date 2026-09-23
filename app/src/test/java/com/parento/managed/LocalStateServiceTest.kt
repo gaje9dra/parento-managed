@@ -42,7 +42,7 @@ class LocalStateServiceTest {
     fun stalePersistedConnectedState_doesNotBecomeLiveConnection() = runBlocking {
         val repository = FakeLocalStateRepository(state = LocalApplicationState(
             initialized = true,
-            installationId = "stable",
+            installationId = "550e8400-e29b-41d4-a716-446655440000",
             identityCreatedAtEpochMillis = 1L,
             connectionState = ConnectionState.CONNECTED,
         ))
