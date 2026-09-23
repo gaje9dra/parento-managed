@@ -1,12 +1,9 @@
 package com.parento.managed
 
-import android.content.Context
 import androidx.room.testing.MigrationTestHelper
-import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.parento.managed.data.local.ParentoDatabase
-import androidx.room.Room
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
