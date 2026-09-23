@@ -399,3 +399,86 @@ Tests use an in-memory database. There is no production behavior that automatica
 ### Backend boundary
 
 This phase does not implement REST clients, authentication requests, enrollment API calls, WebSockets, FCM, backend synchronization, or device commands. Backend requirements are documented only and belong to later phases/repositories.
+
+
+## Phase 2.2 — Managed Local Domain Persistence
+
+Phase 2.2 extends the Phase 2.1 Room foundation into a minimal lifecycle-state persistence layer.
+
+### Architecture
+
+UI → ViewModel → Domain → Repository → Local Data Source → Room
+
+The current application UI remains Android Views/Material because the repository did not establish Compose. The persistence layer remains UI-independent.
+
+### Persisted state
+
+The single local state record now contains:
+
+- stable application-scoped installation identifier
+- identity creation timestamp
+- local state version
+- last synchronization timestamp
+- local initialization state
+- enrollment lifecycle state
+- connection lifecycle state
+
+A newly installed or previously empty state starts as:
+
+- enrollment: `UNENROLLED`
+- connection: `UNKNOWN`
+
+The installation identifier is generated with a UUID and stored locally. Android hardware identifiers such as IMEI, serial number, and MAC address are not collected.
+
+### Room schema
+
+Room database version is now **2**.
+
+Migration:
+
+`MIGRATION_1_2`
+
+preserves the Phase 2.1 state row and adds the Phase 2.2 identity and lifecycle columns with safe defaults.
+
+Production destructive migration is not enabled.
+
+### Repository
+
+`LocalStateRepository` provides:
+
+- read/observe local state
+- write/clear local state
+- get-or-create stable local identity
+- update enrollment state
+- update connection state
+
+Room exceptions are converted to `ManagedError.STORAGE_FAILURE`.
+
+No backend communication, enrollment workflow, credentials, or device-control functionality is introduced.
+
+### Testing
+
+Phase 2.2 adds isolated Android tests for:
+
+- stable identity creation
+- identity retrieval
+- enrollment state persistence
+- connection state persistence
+- reactive Flow observation
+- repository round trips
+- Room 1 → 2 migration
+- safe initial state
+
+The migration test starts from a Phase 2.1 schema and verifies existing persisted values survive.
+
+### Backup and security
+
+Application backup remains disabled. The Phase 2.2 state contains no passwords, tokens, refresh tokens, backend secrets, enrollment secrets, or private keys.
+
+The installation ID is application-scoped and non-hardware-derived.
+
+No sensitive Android permissions were added.
+
+### Deferred
+
+Backend communication, authentication, enrollment/pairing, Device Owner provisioning, monitoring, location, camera, microphone/audio, screen capture/sharing, device controls, application/website blocking, filtering, policy synchronization, remote commands, and sensitive management capabilities remain deferred.
