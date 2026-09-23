@@ -44,7 +44,7 @@ UNENROLLED → ENROLLING → ENROLLED
 
 `REVOKED` remains terminal and `ERROR` retains its existing recovery transitions.
 
-Persisted connection state is last-known state only. Runtime connection state begins at `UNKNOWN` after process recreation, so stale persisted `CONNECTED` never becomes proof of a live connection.
+Connection state is runtime-only. It begins at `UNKNOWN` after process recreation and is never restored from Room, so stale connection information cannot be mistaken for a live connection.
 
 ## Persistence lifecycle
 
@@ -52,7 +52,7 @@ The application owns one Room database instance for the process lifetime. Reposi
 
 ## Migration
 
-Room remains at schema version 2 with the explicit v1 → v2 migration. No destructive migration is enabled. Existing migration tests cover preservation and safe defaults.
+Room is now at schema version 3. The explicit v1 → v2 migration adds identity/enrollment fields, and v2 → v3 removes the runtime-only connection column while preserving restart-safe state. No destructive migration is enabled. Instrumented migration tests cover clean upgrade paths and preservation of persistent state.
 
 ## Backup and restore
 
@@ -69,3 +69,8 @@ Phase 2.4 adds service tests for first/repeated initialization, missing identity
 ## Deferred
 
 Backend communication, authentication, enrollment/pairing, provisioning, realtime communication, monitoring/telemetry, location, camera/microphone/audio, screen capture/sharing, device controls, app blocking, website/DNS/VPN filtering, policy synchronization/enforcement, and remote commands remain deferred.
+
+
+## Phase 2.5 hardening note
+
+Phase 2.5 treats the Room database as the source of truth only for restart-safe local state. Current connection status is held in the service runtime state and is validated through the existing connection transition model. Persistence writes cannot accidentally turn a transient CONNECTED state into durable state.
