@@ -1,6 +1,6 @@
 package com.parento.managed.config
 
-import android.net.Uri
+import java.net.URI
 import com.parento.managed.logging.LogLevel
 
 data class LoggingConfig(
@@ -33,7 +33,7 @@ data class AppConfig(
 ) {
     init {
         require(backendBaseUrl.isNotBlank()) { "Backend base URL must not be blank." }
-        val uri = Uri.parse(backendBaseUrl)
+        val uri = URI.create(backendBaseUrl)
         require(uri.scheme == "https" || uri.scheme == "http") {
             "Backend base URL must use HTTP(S)."
         }
