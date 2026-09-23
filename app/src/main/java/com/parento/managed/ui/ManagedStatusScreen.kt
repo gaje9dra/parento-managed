@@ -7,6 +7,7 @@ import android.widget.LinearLayout
 import androidx.core.view.setPadding
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textview.MaterialTextView
+import com.parento.managed.BuildConfig
 import com.parento.managed.R
 
 class ManagedStatusScreen(
