@@ -31,8 +31,6 @@ class ManagedStatusViewModel(
             com.parento.managed.domain.EnrollmentState.UNENROLLED -> DeviceStatus.UNENROLLED
             com.parento.managed.domain.EnrollmentState.ENROLLING -> DeviceStatus.ENROLLING
             com.parento.managed.domain.EnrollmentState.ENROLLED -> DeviceStatus.ENROLLED
-            com.parento.managed.domain.EnrollmentState.CONNECTED -> DeviceStatus.CONNECTED
-            com.parento.managed.domain.EnrollmentState.DISCONNECTED -> DeviceStatus.DISCONNECTED
             com.parento.managed.domain.EnrollmentState.REVOKED -> DeviceStatus.REVOKED
             com.parento.managed.domain.EnrollmentState.ERROR -> DeviceStatus.ERROR
         }
@@ -64,8 +62,6 @@ class ManagedStatusViewModel(
             DeviceStatus.UNENROLLED -> "Not enrolled"
             DeviceStatus.ENROLLING -> "Enrollment in progress"
             DeviceStatus.ENROLLED -> "Enrolled"
-            DeviceStatus.CONNECTED -> "Managed and connected"
-            DeviceStatus.DISCONNECTED -> "Managed and disconnected"
             DeviceStatus.REVOKED -> "Management revoked"
             DeviceStatus.ERROR -> "Management state error"
         }
