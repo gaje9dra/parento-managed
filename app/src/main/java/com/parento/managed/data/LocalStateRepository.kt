@@ -3,6 +3,10 @@ package com.parento.managed.data
 import com.parento.managed.data.local.LocalApplicationStateDao
 import com.parento.managed.data.local.LocalApplicationStateEntity
 import com.parento.managed.domain.EnrollmentState
+import com.parento.managed.device.CapabilityState
+import com.parento.managed.device.CapabilityStatus
+import com.parento.managed.device.DeviceManagementCapability
+import com.parento.managed.device.ManagementMode
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
 import com.parento.managed.domain.canTransitionTo
@@ -143,6 +147,10 @@ private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState {
         enrollmentState = runCatching { EnrollmentState.valueOf(enrollmentState) }
             .getOrElse { throw IllegalStateException("Invalid persisted enrollment state.") },
         connectionState = com.parento.managed.domain.ConnectionState.UNKNOWN,
+        managementMode = runCatching { ManagementMode.valueOf(managementMode) }
+            .getOrElse { throw IllegalStateException("Invalid persisted management mode.") },
+        managementCapabilities = decodeCapabilities(managementCapabilities),
+        managementStateUpdatedAtEpochMillis = managementStateUpdatedAtEpochMillis,
     )
 }
 
@@ -154,8 +162,31 @@ private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
         installationId = installationId,
         identityCreatedAtEpochMillis = identityCreatedAtEpochMillis,
         enrollmentState = enrollmentState.name,
+        managementMode = managementMode.name,
+        managementCapabilities = encodeCapabilities(managementCapabilities),
+        managementStateUpdatedAtEpochMillis = managementStateUpdatedAtEpochMillis,
     )
 
 
 private fun isValidInstallationId(value: String): Boolean =
     runCatching { UUID.fromString(value) }.isSuccess
+
+
+private fun encodeCapabilities(states: List<CapabilityState>): String =
+    states.joinToString(";") { "${it.capability.name}:${it.status.name}" }
+
+private fun decodeCapabilities(value: String): List<CapabilityState> =
+    if (value.isBlank()) {
+        emptyList()
+    } else {
+        value.split(";").map { entry ->
+            val parts = entry.split(":", limit = 2)
+            if (parts.size != 2) throw IllegalStateException("Invalid persisted capability state.")
+            CapabilityState(
+                capability = runCatching { DeviceManagementCapability.valueOf(parts[0]) }
+                    .getOrElse { throw IllegalStateException("Invalid persisted capability.") },
+                status = runCatching { CapabilityStatus.valueOf(parts[1]) }
+                    .getOrElse { throw IllegalStateException("Invalid persisted capability status.") },
+            )
+        }
+    }
