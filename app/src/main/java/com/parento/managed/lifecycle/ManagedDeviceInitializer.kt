@@ -5,6 +5,7 @@ import com.parento.managed.data.LocalStateRepository
 import com.parento.managed.device.CapabilityState
 import com.parento.managed.device.DeviceManagementManager
 import com.parento.managed.device.ManagementMode
+import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.OperationResult
 import com.parento.managed.policy.PolicyEngine
 import kotlinx.coroutines.sync.Mutex
@@ -13,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 data class ManagementState(
     val managementMode: ManagementMode,
     val capabilities: List<CapabilityState>,
+    val enrollmentState: EnrollmentState,
     val evaluatedAtEpochMillis: Long,
 )
 
@@ -32,6 +34,7 @@ class LocalManagementStateRepository(
                     ManagementState(
                         managementMode = it.managementMode,
                         capabilities = it.managementCapabilities,
+                        enrollmentState = it.enrollmentState,
                         evaluatedAtEpochMillis = it.managementStateUpdatedAtEpochMillis ?: 0L,
                     ),
                 )
@@ -45,6 +48,7 @@ class LocalManagementStateRepository(
                 (current.value ?: LocalApplicationState()).copy(
                     managementMode = state.managementMode,
                     managementCapabilities = state.capabilities,
+                    enrollmentState = state.enrollmentState,
                     managementStateUpdatedAtEpochMillis = state.evaluatedAtEpochMillis,
                 ),
             )
@@ -67,6 +71,7 @@ class ManagedDeviceInitializer(
                     val state = ManagementState(
                         managementMode = deviceManagementManager.detectManagementMode(),
                         capabilities = deviceManagementManager.evaluateCapabilities(),
+                        enrollmentState = local.value.enrollmentState,
                         evaluatedAtEpochMillis = System.currentTimeMillis(),
                     )
                     when (val persisted = managementStateRepository.write(state)) {
