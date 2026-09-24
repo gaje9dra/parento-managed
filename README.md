@@ -13,7 +13,7 @@ The companion repositories are not modified by this phase:
 
 ## Current phase
 
-Phase 2.5 — Local Persistence Security, Testing & Phase 2 Completion
+Phase 4.1 — Managed Device Foundation & Device-Management Architecture
 
 Phase 2.5 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
 
@@ -147,6 +147,10 @@ Expected commands:
     ./gradlew assembleRelease
 
 Do not treat these commands as completed unless they have actually been executed.
+
+## Phase 4.1 status
+
+The Managed application now has explicit Android Enterprise, device-management, capability, permission, policy, command, communication, and lifecycle boundaries. Actual management controls remain deferred.
 
 ## Deferred functionality
 
