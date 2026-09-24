@@ -6,11 +6,13 @@ enum class CapabilityStatus {
     REQUIRES_AUTHORIZATION,
     REQUIRES_PERMISSION,
     NOT_SUPPORTED,
+    ERROR,
 }
 
 enum class DeviceManagementCapability {
     DEVICE_OWNER,
     PROFILE_OWNER,
+    DEVICE_POLICY_SUPPORTED,
     MANAGED_CONFIGURATION,
     POLICY_SUPPORT,
     LOCK_CAPABILITY,
