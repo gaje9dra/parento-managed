@@ -50,6 +50,49 @@ class ManagementStateTest {
         assertNotNull(local.read().let { (it as OperationResult.Success).value?.managementMode })
     }
 
+    @Test
+    fun initializationRefreshesCachedModeFromPlatform() = kotlinx.coroutines.runBlocking {
+        val local = FakeLocalStateRepository()
+        local.write(
+            LocalApplicationState(
+                managementMode = ManagementMode.DEVICE_OWNER,
+                managementCapabilities = listOf(
+                    CapabilityState(
+                        DeviceManagementCapability.DEVICE_OWNER,
+                        CapabilityStatus.AVAILABLE,
+                    ),
+                ),
+            ),
+        )
+        val manager = object : DeviceManagementManager {
+            override fun detectManagementMode() = ManagementMode.NOT_MANAGED
+            override fun detectManagementState() =
+                com.parento.managed.device.ManagementDetectionResult(ManagementMode.NOT_MANAGED)
+            override fun evaluateCapabilities(
+                detection: com.parento.managed.device.ManagementDetectionResult,
+            ) = listOf(
+                CapabilityState(
+                    DeviceManagementCapability.DEVICE_OWNER,
+                    CapabilityStatus.UNAVAILABLE,
+                ),
+            )
+        }
+        val initializer = ManagedDeviceInitializer(
+            localStateRepository = local,
+            managementStateRepository = LocalManagementStateRepository(local),
+            deviceManagementManager = manager,
+            policyEngine = DefaultPolicyEngine(),
+        )
+
+        val result = initializer.initialize() as OperationResult.Success
+
+        assertEquals(ManagementMode.NOT_MANAGED, result.value.managementMode)
+        assertEquals(
+            ManagementMode.NOT_MANAGED,
+            (local.read() as OperationResult.Success).value?.managementMode,
+        )
+    }
+
     private class FakeLocalStateRepository : LocalStateRepository {
         private var state: LocalApplicationState? = null
 
