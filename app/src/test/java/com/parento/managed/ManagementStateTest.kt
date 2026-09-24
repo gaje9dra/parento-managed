@@ -108,6 +108,12 @@ class ManagementStateTest {
         override fun observe(): Flow<OperationResult<LocalApplicationState?>> = emptyFlow()
         override suspend fun getOrCreateIdentity(): OperationResult<LocalDeviceIdentity> =
             OperationResult.Success(LocalDeviceIdentity("00000000-0000-0000-0000-000000000001", 1L))
+        override suspend fun getEnrollmentState(): OperationResult<EnrollmentState> =
+            OperationResult.Success(state?.enrollmentState ?: EnrollmentState.UNENROLLED)
+        override suspend fun getConnectionState(): OperationResult<com.parento.managed.domain.ConnectionState> =
+            OperationResult.Success(state?.connectionState ?: com.parento.managed.domain.ConnectionState.UNKNOWN)
+        override suspend fun getManagedDeviceId(): OperationResult<String?> =
+            OperationResult.Success(state?.managedDeviceId)
         override suspend fun initializeLocalState(): OperationResult<LocalApplicationState> {
             state = (state ?: LocalApplicationState()).copy(
                 initialized = true,
