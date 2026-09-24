@@ -59,17 +59,13 @@ Room entities are never exposed to the UI. Repository methods return domain mode
 Persisted state includes:
 - application-scoped installation identity
 - identity creation timestamp
+- nullable backend-assigned managed-device identity
 - enrollment lifecycle state
+- independent connection-state snapshot
+- Android management diagnostic metadata
 - initialization and synchronization metadata
 
-Runtime-only state includes:
-- current connection state
-- loading indicators
-- temporary error presentation
-- navigation state
-- transient connection activity
-
-Connection state is runtime-only. It resets to UNKNOWN after process recreation and is never treated as proof of a live backend connection.
+Connection state remains independent from enrollment. Startup reconstructs the live connection state as UNKNOWN so stale CONNECTED data cannot be treated as proof of a live backend connection.
 
 ## Local lifecycle state
 
@@ -239,7 +235,7 @@ The following remain intentionally unimplemented:
 Future sensitive capabilities must use legitimate Android/Android Enterprise APIs and explicit authorization.
 
 
-## Phase 2.5 completion audit
+## Phase 4.3 completion audit
 
 The Phase 2.5 pass reviewed Room initialization, entity/DAO boundaries, repository serialization, local identity stability, persistent/runtime state separation, migration safety, corruption handling, concurrency/idempotency, backup behavior, permissions, manifest security, logging, dependency configuration, and test isolation.
 
