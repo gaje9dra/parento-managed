@@ -144,5 +144,6 @@ class LocalStateServiceTest {
             return OperationResult.Success(updated)
         }
         override suspend fun updateEnrollmentState(state: EnrollmentState) = OperationResult.Success(Unit)
+        override suspend fun updateConnectionState(state: ConnectionState) = OperationResult.Success(Unit)
     }
 }
