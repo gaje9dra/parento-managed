@@ -3,7 +3,9 @@ package com.parento.managed.device
 interface DeviceManagementManager {
     fun detectManagementMode(): ManagementMode
     fun detectManagementState(): ManagementDetectionResult
-    fun evaluateCapabilities(): List<CapabilityState>
+    fun evaluateCapabilities(
+        detection: ManagementDetectionResult = detectManagementState(),
+    ): List<CapabilityState>
 }
 
 interface DeviceManagementPlatform {
@@ -58,21 +60,16 @@ class AndroidDeviceManagementManager(
     override fun detectManagementMode(): ManagementMode =
         detectManagementState().mode
 
-    override fun evaluateCapabilities(): List<CapabilityState> {
-        val detection = detectManagementState()
+    override fun evaluateCapabilities(
+        detection: ManagementDetectionResult,
+    ): List<CapabilityState> {
         val managed = detection.mode == ManagementMode.DEVICE_OWNER ||
             detection.mode == ManagementMode.PROFILE_OWNER
 
         val platformCapabilities = when {
             detection.error != null -> listOf(
-                CapabilityState(
-                    DeviceManagementCapability.DEVICE_OWNER,
-                    CapabilityStatus.ERROR,
-                ),
-                CapabilityState(
-                    DeviceManagementCapability.PROFILE_OWNER,
-                    CapabilityStatus.ERROR,
-                ),
+                CapabilityState(DeviceManagementCapability.DEVICE_OWNER, CapabilityStatus.ERROR),
+                CapabilityState(DeviceManagementCapability.PROFILE_OWNER, CapabilityStatus.ERROR),
                 CapabilityState(
                     DeviceManagementCapability.DEVICE_POLICY_SUPPORTED,
                     CapabilityStatus.ERROR,
