@@ -137,6 +137,9 @@ class LocalStateServiceTest {
         override suspend fun clear() = OperationResult.Success(Unit)
         override fun observe(): Flow<OperationResult<LocalApplicationState?>> = flowOf(OperationResult.Success(state))
         override suspend fun getOrCreateIdentity(): OperationResult<LocalDeviceIdentity> = OperationResult.Success(LocalDeviceIdentity("test-installation", 1L))
+        override suspend fun getEnrollmentState() = OperationResult.Success(state?.enrollmentState ?: EnrollmentState.UNENROLLED)
+        override suspend fun getConnectionState() = OperationResult.Success(state?.connectionState ?: ConnectionState.UNKNOWN)
+        override suspend fun getManagedDeviceId() = OperationResult.Success(state?.managedDeviceId)
         override suspend fun initializeLocalState(): OperationResult<LocalApplicationState> {
             val current = state ?: LocalApplicationState()
             val updated = current.copy(initialized = true, installationId = current.installationId ?: "test-installation", identityCreatedAtEpochMillis = current.identityCreatedAtEpochMillis ?: 1L)
