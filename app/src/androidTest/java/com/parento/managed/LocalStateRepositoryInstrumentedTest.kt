@@ -131,6 +131,24 @@ class LocalStateRepositoryInstrumentedTest {
     }
 
     @Test
+    fun identityRecovery_doesNotGenerateReplacementForManagedState() = runBlocking {
+        repository.write(
+            LocalApplicationState(
+                initialized = true,
+                enrollmentState = EnrollmentState.ENROLLED,
+                managedDeviceId = "backend-device-1",
+            ),
+        )
+
+        val result = repository.getOrCreateIdentity()
+
+        assertEquals(OperationResult.Failure(ManagedError.STORAGE_FAILURE), result)
+        val state = (repository.read() as OperationResult.Success).value
+        assertEquals(null, state?.installationId)
+        assertEquals("backend-device-1", state?.managedDeviceId)
+    }
+
+    @Test
     fun clear_removesState() = runBlocking {
         repository.write(LocalApplicationState(initialized = true))
         assertEquals(OperationResult.Success(Unit), repository.clear())
