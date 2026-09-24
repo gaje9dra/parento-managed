@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
             app.managementState?.let { state ->
                 viewModel.showManagementState(
                     managementState = state,
-                    enrollmentState = com.parento.managed.domain.EnrollmentState.UNENROLLED,
+                    enrollmentState = state.enrollmentState,
                     connectionState = com.parento.managed.domain.ConnectionState.UNKNOWN,
                 )
             }
