@@ -13,7 +13,7 @@ The companion repositories are not modified by this phase:
 
 ## Current phase
 
-Phase 4.1 — Managed Device Foundation & Device-Management Architecture
+Phase 4.2 — Android Enterprise & Device Owner Integration Foundation
 
 Phase 2.5 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
 
@@ -73,6 +73,55 @@ The separate connection-state model remains:
 - DISCONNECTED
 - CONNECTING
 - CONNECTED
+
+## Managed Device Architecture
+
+Android management state is authoritative from `DevicePolicyManager`. The managed app does not infer Device Owner or Profile Owner status from installation, backend enrollment, local flags, or cached state.
+
+The platform boundary is:
+
+UI
+  ↓
+ViewModel
+  ↓
+Managed-device state
+  ↓
+DeviceManagementManager / ManagementModeDetector
+  ↓
+AndroidDeviceManagementPlatform
+  ↓
+DevicePolicyManager
+
+`Device Owner`, `Profile Owner`, `NOT_MANAGED`, and `UNKNOWN` are separate management modes. An `UNKNOWN` result carries a structured detection error and fails closed.
+
+The `DeviceAdminReceiver` is a minimal Android platform foundation only. It is protected by `BIND_DEVICE_ADMIN`, uses the required device-admin metadata, and does not execute remote commands or sensitive operations.
+
+Capability discovery distinguishes platform authorization from features that are merely planned. Phase 4.2 reports future control/monitoring capabilities as unavailable or not supported rather than claiming them from code paths alone.
+
+## Security
+
+Parento uses legitimate Android Enterprise / Device Owner and Profile Owner mechanisms. No root, hidden APIs, Accessibility abuse, covert sensor activation, covert capture, anti-uninstall bypass, fake Device Owner state, or unauthorized settings manipulation is implemented.
+
+Persisted management metadata is diagnostic/UI state only. Every application initialization refreshes management status from Android so a reboot or reinstall cannot turn cached data into proof of Device Owner status.
+
+The Device Admin receiver requires the system-only `android.permission.BIND_DEVICE_ADMIN` permission. No privileged or system-only application permissions were added.
+
+## Testing
+
+Unit coverage includes:
+- Device Owner detection
+- Profile Owner detection
+- unmanaged state
+- unsupported platform/API state
+- security exceptions
+- unexpected platform failures
+- conflicting Device Owner/Profile Owner signals
+- capability fail-closed behavior
+- lifecycle-safe management initialization
+
+Instrumentation coverage retains the Room migration tests. A specially provisioned Device Owner test device is not required for normal unit tests.
+
+For legitimate manual Device Owner verification, provision the application using a supported Android Enterprise provisioning flow or an appropriate development/test mechanism. Do not grant Device Owner status from inside the app or bypass Android provisioning.
 
 No actual connection mechanism is implemented in this phase.
 
@@ -148,9 +197,9 @@ Expected commands:
 
 Do not treat these commands as completed unless they have actually been executed.
 
-## Phase 4.1 status
+## Phase 4.2 status
 
-The Managed application now has explicit Android Enterprise, device-management, capability, permission, policy, command, communication, and lifecycle boundaries. Actual management controls remain deferred.
+The Managed application now has an Android Enterprise platform boundary with authoritative Device Owner/Profile Owner detection, structured error handling, capability discovery, lifecycle-safe startup refresh, and a protected DeviceAdminReceiver foundation. Actual management controls remain deferred.
 
 ## Deferred functionality
 
