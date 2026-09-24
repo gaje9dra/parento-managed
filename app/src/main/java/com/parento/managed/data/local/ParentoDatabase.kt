@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [LocalApplicationStateEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class ParentoDatabase : RoomDatabase() {
@@ -78,11 +78,25 @@ abstract class ParentoDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE local_application_state ADD COLUMN managementMode TEXT NOT NULL DEFAULT 'NOT_MANAGED'",
+                )
+                database.execSQL(
+                    "ALTER TABLE local_application_state ADD COLUMN managementCapabilities TEXT NOT NULL DEFAULT ''",
+                )
+                database.execSQL(
+                    "ALTER TABLE local_application_state ADD COLUMN managementStateUpdatedAtEpochMillis INTEGER",
+                )
+            }
+        }
+
         fun builder(context: Context): RoomDatabase.Builder<ParentoDatabase> =
             Room.databaseBuilder(
                 context.applicationContext,
                 ParentoDatabase::class.java,
                 "parento-managed.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
     }
 }
