@@ -27,7 +27,11 @@ class ManagementStateTest {
         val local = FakeLocalStateRepository()
         val manager = object : DeviceManagementManager {
             override fun detectManagementMode() = ManagementMode.PROFILE_OWNER
-            override fun evaluateCapabilities() = listOf(
+            override fun detectManagementState() =
+                com.parento.managed.device.ManagementDetectionResult(ManagementMode.PROFILE_OWNER)
+            override fun evaluateCapabilities(
+                detection: com.parento.managed.device.ManagementDetectionResult,
+            ) = listOf(
                 CapabilityState(DeviceManagementCapability.PROFILE_OWNER, CapabilityStatus.AVAILABLE),
             )
         }
