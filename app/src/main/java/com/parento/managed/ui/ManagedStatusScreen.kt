@@ -71,7 +71,11 @@ class ManagedStatusScreen(
 
     private fun renderContent(state: ManagedUiState.Content) {
         subtitle.text = context.getString(R.string.device_status_title)
+        addMessage(context.getString(R.string.management_mode_title))
         addMessage(state.managementLabel)
+        addMessage(context.getString(R.string.enrollment_state_title))
+        addMessage(state.deviceStatus.name)
+        addMessage(context.getString(R.string.connection_state_title))
         addMessage(state.connectionLabel)
         addMessage(context.getString(R.string.no_device_features_message))
     }
