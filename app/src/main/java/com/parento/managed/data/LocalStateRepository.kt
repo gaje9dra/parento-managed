@@ -160,7 +160,6 @@ private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState {
         managedDeviceId = managedDeviceId,
         enrollmentState = runCatching { EnrollmentState.valueOf(enrollmentState) }
             .getOrElse { throw IllegalStateException("Invalid persisted enrollment state.") },
-        managedDeviceId = managedDeviceId,
         connectionState = runCatching { ConnectionState.valueOf(connectionState) }
             .getOrElse { throw IllegalStateException("Invalid persisted connection state.") },
         managementMode = runCatching { ManagementMode.valueOf(managementMode) }
