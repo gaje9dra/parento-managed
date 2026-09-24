@@ -13,11 +13,28 @@ The companion repositories are not modified by this phase:
 
 ## Current phase
 
-Phase 4.2 — Android Enterprise & Device Owner Integration Foundation
+Phase 4.3 — Device Identity, Enrollment State & Secure Local Configuration
 
 Phase 2.5 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
 
 No backend communication, authentication, enrollment workflow, remote commands, monitoring, screen sharing, camera, microphone, audio, app blocking, website blocking, or policy enforcement is implemented.
+
+## Identity and state architecture
+
+The Managed application keeps these concepts separate:
+
+- local installation identity (`installationId`)
+- backend-assigned Managed device identity (`managedDeviceId`, nullable)
+- Android management identity (`NOT_MANAGED`, `PROFILE_OWNER`, `DEVICE_OWNER`, `UNKNOWN`)
+- enrollment state
+- connection state
+- UI state
+
+Android management remains platform-authoritative. Enrollment and connection state cannot overwrite Device Owner/Profile Owner detection.
+
+The installation ID is a locally generated UUID persisted through the Room repository. It is not authorization proof and is not derived from hardware identifiers. Identity initialization is serialized so concurrent callers receive the same identity.
+
+A nullable `managedDeviceId` is reserved for a future backend-assigned identity. Phase 4.3 never invents one.
 
 ## Persistence architecture
 
@@ -56,19 +73,15 @@ Connection state is runtime-only. It resets to UNKNOWN after process recreation 
 
 ## Local lifecycle state
 
-The existing enrollment lifecycle model remains:
+The enrollment lifecycle model is:
 
 - UNENROLLED
 - ENROLLING
 - ENROLLED
-- CONNECTED
-- DISCONNECTED
 - REVOKED
 - ERROR
 
-The repository validates transitions so a fresh UNENROLLED state cannot jump directly to CONNECTED.
-
-The separate connection-state model remains:
+Enrollment and connection are deliberately separate. The connection-state model remains:
 - UNKNOWN
 - DISCONNECTED
 - CONNECTING
@@ -141,7 +154,7 @@ Identity initialization is serialized within the repository to prevent duplicate
 
 Room database: parento-managed.db
 
-Current schema version: 4
+Current schema version: 5
 
 Entity:
 - LocalApplicationStateEntity
@@ -151,7 +164,7 @@ DAO:
 
 The singleton primary key keeps local application state to one record.
 
-The explicit MIGRATION_1_2, MIGRATION_2_3, and MIGRATION_3_4 paths are preserved. MIGRATION_2_3 removes the previously persisted runtime connection column, while MIGRATION_3_4 adds management-mode and capability metadata without losing restart-safe state. No destructive migration is enabled.
+The explicit MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, and MIGRATION_4_5 paths are preserved. MIGRATION_4_5 adds independent connection-state and nullable managed-device identity columns without destructive migration.
 
 ## Error handling
 
@@ -197,9 +210,9 @@ Expected commands:
 
 Do not treat these commands as completed unless they have actually been executed.
 
-## Phase 4.2 status
+## Phase 4.3 status
 
-The Managed application now has an Android Enterprise platform boundary with authoritative Device Owner/Profile Owner detection, structured error handling, capability discovery, lifecycle-safe startup refresh, and a protected DeviceAdminReceiver foundation. Actual management controls remain deferred.
+The Managed application now has the Android Enterprise foundation plus Phase 4.3 local identity/state separation. Installation identity, backend-assigned managed-device identity, enrollment, connection, and Android management state are distinct. Identity recovery fails closed when existing managed state could otherwise be duplicated. Actual enrollment/pairing and management controls remain deferred.
 
 ## Deferred functionality
 
