@@ -17,15 +17,34 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-interface LocalStateRepository {
+interface DeviceIdentityRepository {
+    suspend fun getOrCreateIdentity(): OperationResult<LocalDeviceIdentity>
+}
+
+interface EnrollmentStateRepository {
+    suspend fun getEnrollmentState(): OperationResult<EnrollmentState>
+    suspend fun updateEnrollmentState(state: EnrollmentState): OperationResult<Unit>
+}
+
+interface ConnectionStateRepository {
+    suspend fun getConnectionState(): OperationResult<ConnectionState>
+    suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit>
+}
+
+interface ManagedDeviceStateRepository {
+    suspend fun getManagedDeviceId(): OperationResult<String?>
+}
+
+interface LocalStateRepository :
+    DeviceIdentityRepository,
+    EnrollmentStateRepository,
+    ConnectionStateRepository,
+    ManagedDeviceStateRepository {
     suspend fun read(): OperationResult<LocalApplicationState?>
     suspend fun write(state: LocalApplicationState): OperationResult<Unit>
     suspend fun clear(): OperationResult<Unit>
     fun observe(): Flow<OperationResult<LocalApplicationState?>>
-    suspend fun getOrCreateIdentity(): OperationResult<LocalDeviceIdentity>
     suspend fun initializeLocalState(): OperationResult<LocalApplicationState>
-    suspend fun updateEnrollmentState(state: EnrollmentState): OperationResult<Unit>
-    suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit>
 }
 
 class RoomLocalStateRepository(
@@ -119,6 +138,15 @@ class RoomLocalStateRepository(
                 dao.upsert(current.copy(enrollmentState = state).toEntity())
             }
         }
+
+    override suspend fun getEnrollmentState(): OperationResult<EnrollmentState> =
+        runStorageOperation { dao.read()?.toDomain()?.enrollmentState ?: EnrollmentState.UNENROLLED }
+
+    override suspend fun getConnectionState(): OperationResult<ConnectionState> =
+        runStorageOperation { dao.read()?.toDomain()?.connectionState ?: ConnectionState.UNKNOWN }
+
+    override suspend fun getManagedDeviceId(): OperationResult<String?> =
+        runStorageOperation { dao.read()?.managedDeviceId }
 
     override suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit> =
         stateMutex.withLock {
