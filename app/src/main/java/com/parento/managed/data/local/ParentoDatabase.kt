@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [LocalApplicationStateEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class ParentoDatabase : RoomDatabase() {
@@ -92,11 +92,23 @@ abstract class ParentoDatabase : RoomDatabase() {
             }
         }
 
+
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE local_application_state ADD COLUMN connectionState TEXT NOT NULL DEFAULT 'UNKNOWN'",
+                )
+                database.execSQL(
+                    "ALTER TABLE local_application_state ADD COLUMN managedDeviceId TEXT",
+                )
+            }
+        }
+
         fun builder(context: Context): RoomDatabase.Builder<ParentoDatabase> =
             Room.databaseBuilder(
                 context.applicationContext,
                 ParentoDatabase::class.java,
                 "parento-managed.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
     }
 }
