@@ -21,7 +21,9 @@ class MainActivity : AppCompatActivity() {
         viewModel = androidx.lifecycle.ViewModelProvider(this)[ManagedStatusViewModel::class.java]
         screen = ManagedStatusScreen(
             context = this,
-            onRetry = { render() },
+            onRetry = {
+                (application as ParentoApplication).retryInitialization()
+            },
         )
 
         setContentView(screen.view())
@@ -38,7 +40,8 @@ class MainActivity : AppCompatActivity() {
                             viewModel.showError(
                                 error = result.error,
                                 message = "Managed-device state is currently unavailable.",
-                                canRetry = false,
+                                canRetry = app.initializationState.value.status !=
+                                    com.parento.managed.lifecycle.InitializationStatus.INITIALIZING,
                             )
 
                         is OperationResult.Success -> {
@@ -53,17 +56,6 @@ class MainActivity : AppCompatActivity() {
                     screen.render(viewModel.uiState)
                 }
             }
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        render()
-    }
-
-    private fun render() {
-        if (::screen.isInitialized && ::viewModel.isInitialized) {
-            screen.render(viewModel.uiState)
         }
     }
 }
