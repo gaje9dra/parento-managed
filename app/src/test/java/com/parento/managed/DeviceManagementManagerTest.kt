@@ -105,6 +105,22 @@ class DeviceManagementManagerTest {
     }
 
     @Test
+    fun unexpectedPlatformExceptionBecomesSafeDomainState() {
+        val manager = AndroidDeviceManagementManager(
+            object : DeviceManagementPlatform {
+                override fun isDeviceOwner(): Boolean = throw IllegalStateException("unexpected")
+                override fun isProfileOwner() = false
+                override fun isDevicePolicySupported() = true
+            },
+        )
+
+        val detection = manager.detectManagementState()
+
+        assertEquals(ManagementMode.UNKNOWN, detection.mode)
+        assertEquals(ManagementDetectionError.PLATFORM_API_ERROR, detection.error)
+    }
+
+    @Test
     fun securityExceptionBecomesSafeDomainState() {
         val manager = AndroidDeviceManagementManager(
             object : DeviceManagementPlatform {
