@@ -86,9 +86,15 @@ class RoomLocalStateRepository(
                     return@runStorageOperation LocalDeviceIdentity(existingId, existingCreatedAt)
                 }
 
+                val base = existing?.toDomain() ?: LocalApplicationState()
+                if (
+                    base.enrollmentState != EnrollmentState.UNENROLLED ||
+                    base.managedDeviceId != null
+                ) {
+                    throw IllegalStateException("Cannot recreate installation identity for existing managed state.")
+                }
                 val now = System.currentTimeMillis()
                 val identity = LocalDeviceIdentity(UUID.randomUUID().toString(), now)
-                val base = existing?.toDomain() ?: LocalApplicationState()
                 dao.upsert(
                     base.copy(
                         installationId = identity.installationId,
@@ -115,6 +121,12 @@ class RoomLocalStateRepository(
                     }
                     LocalDeviceIdentity(current.installationId, current.identityCreatedAtEpochMillis)
                 } else {
+                    if (
+                        current.enrollmentState != EnrollmentState.UNENROLLED ||
+                        current.managedDeviceId != null
+                    ) {
+                        throw IllegalStateException("Cannot recreate installation identity for existing managed state.")
+                    }
                     LocalDeviceIdentity(UUID.randomUUID().toString(), System.currentTimeMillis())
                 }
 
