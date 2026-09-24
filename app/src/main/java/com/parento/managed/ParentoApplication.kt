@@ -62,9 +62,13 @@ class ParentoApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        logger = AndroidManagedLogger(ManagedApplicationConfig.get().also {
-            ManagedApplicationConfig.initialize()
-        })
+        val configResult = runCatching { ManagedApplicationConfig.initialize() }
+        if (configResult.isFailure) {
+            publishInitializationFailure("configuration", ManagedError.UNKNOWN)
+            android.util.Log.e("ParentoManaged", "Application configuration initialization failed.")
+            return
+        }
+        logger = AndroidManagedLogger(ManagedApplicationConfig.get())
 
         val databaseResult = runCatching { LocalDatabaseProvider.initialize(this) }
         if (databaseResult.isFailure) {
