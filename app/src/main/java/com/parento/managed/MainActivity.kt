@@ -1,7 +1,7 @@
 package com.parento.managed
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -11,7 +11,7 @@ import com.parento.managed.ui.ManagedStatusScreen
 import com.parento.managed.ui.ManagedStatusViewModel
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: ManagedStatusViewModel
     private lateinit var screen: ManagedStatusScreen
 
