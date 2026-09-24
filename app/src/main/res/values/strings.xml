@@ -10,4 +10,7 @@
     <string name="retry">Retry</string>
     <string name="no_device_features_message">Device-management features are not active in this phase.</string>
     <string name="version_label">Version %1$s</string>
+    <string name="management_mode_title">Management Mode</string>
+    <string name="enrollment_state_title">Enrollment State</string>
+    <string name="connection_state_title">Connection State</string>
 </resources>
