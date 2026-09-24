@@ -22,11 +22,11 @@ class ManagedStatusViewModelTest {
         viewModel.showLoading()
         assertEquals(ManagedUiState.Loading, viewModel.uiState)
 
-        viewModel.showDeviceState(DeviceStatus.CONNECTED, ConnectionState.CONNECTED)
+        viewModel.showDeviceState(DeviceStatus.ENROLLED, ConnectionState.CONNECTED)
         assertEquals(
             ManagedUiState.Content(
-                DeviceStatus.CONNECTED,
-                "Managed and connected",
+                DeviceStatus.ENROLLED,
+                "Enrolled",
                 "Connected",
             ),
             viewModel.uiState,
@@ -51,14 +51,14 @@ class ManagedStatusViewModelTest {
     fun state_isRestoredFromSavedStateHandle() {
         val savedState = SavedStateHandle()
         val original = ManagedStatusViewModel(savedState)
-        original.showDeviceState(DeviceStatus.CONNECTED, ConnectionState.CONNECTED)
+        original.showDeviceState(DeviceStatus.ENROLLED, ConnectionState.CONNECTED)
 
         val recreated = ManagedStatusViewModel(savedState)
 
         assertEquals(
             ManagedUiState.Content(
-                DeviceStatus.CONNECTED,
-                "Managed and connected",
+                DeviceStatus.ENROLLED,
+                "Enrolled",
                 "Connected",
             ),
             recreated.uiState,
