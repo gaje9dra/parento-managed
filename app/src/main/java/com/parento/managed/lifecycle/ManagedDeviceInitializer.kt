@@ -4,6 +4,7 @@ import com.parento.managed.data.LocalApplicationState
 import com.parento.managed.data.LocalStateRepository
 import com.parento.managed.device.CapabilityState
 import com.parento.managed.device.DeviceManagementManager
+import com.parento.managed.device.ManagementDetectionError
 import com.parento.managed.device.ManagementMode
 import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.OperationResult
@@ -13,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 
 data class ManagementState(
     val managementMode: ManagementMode,
+    val managementDetectionError: ManagementDetectionError?,
     val capabilities: List<CapabilityState>,
     val enrollmentState: EnrollmentState,
     val evaluatedAtEpochMillis: Long,
@@ -33,6 +35,7 @@ class LocalManagementStateRepository(
                 OperationResult.Success(
                     ManagementState(
                         managementMode = it.managementMode,
+                        managementDetectionError = null,
                         capabilities = it.managementCapabilities,
                         enrollmentState = it.enrollmentState,
                         evaluatedAtEpochMillis = it.managementStateUpdatedAtEpochMillis ?: 0L,
@@ -68,9 +71,13 @@ class ManagedDeviceInitializer(
             when (val local = localStateRepository.initializeLocalState()) {
                 is OperationResult.Failure -> local
                 is OperationResult.Success -> {
+                    // The operating system is authoritative. Persisted mode is diagnostic
+                    // metadata only and is replaced on every initialization.
+                    val detection = deviceManagementManager.detectManagementState()
                     val state = ManagementState(
-                        managementMode = deviceManagementManager.detectManagementMode(),
-                        capabilities = deviceManagementManager.evaluateCapabilities(),
+                        managementMode = detection.mode,
+                        managementDetectionError = detection.error,
+                        capabilities = deviceManagementManager.evaluateCapabilities(detection),
                         enrollmentState = local.value.enrollmentState,
                         evaluatedAtEpochMillis = System.currentTimeMillis(),
                     )
