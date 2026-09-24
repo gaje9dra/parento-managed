@@ -1,6 +1,8 @@
 package com.parento.managed
 
 import android.app.Application
+import androidx.lifecycle.ProcessLifecycleOwner
+import com.parento.managed.background.WorkManagerBackgroundWorkScheduler
 import com.parento.managed.config.ManagedApplicationConfig
 import com.parento.managed.data.LocalStateRepository
 import com.parento.managed.data.LocalStateService
@@ -8,12 +10,20 @@ import com.parento.managed.data.RoomLocalStateRepository
 import com.parento.managed.data.local.LocalDatabaseProvider
 import com.parento.managed.device.AndroidDeviceManagementManager
 import com.parento.managed.device.AndroidDeviceManagementPlatform
+import com.parento.managed.lifecycle.AndroidConnectivityObserver
+import com.parento.managed.lifecycle.ApplicationInitializationState
+import com.parento.managed.lifecycle.ApplicationLifecycleObserver
+import com.parento.managed.lifecycle.ConnectivityObserver
+import com.parento.managed.lifecycle.InitializationStatus
 import com.parento.managed.lifecycle.LocalManagementStateRepository
 import com.parento.managed.lifecycle.ManagedDeviceInitializer
+import com.parento.managed.lifecycle.ManagedStartupOrchestrator
 import com.parento.managed.lifecycle.ManagementState
+import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
 import com.parento.managed.logging.AndroidManagedLogger
 import com.parento.managed.logging.LogLevel
+import com.parento.managed.logging.ManagedLogger
 import com.parento.managed.policy.DefaultPolicyEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,9 +39,13 @@ class ParentoApplication : Application() {
 
     private val _managementInitialization =
         MutableStateFlow<OperationResult<ManagementState>?>(null)
-
     val managementInitialization: StateFlow<OperationResult<ManagementState>?> =
         _managementInitialization.asStateFlow()
+
+    private val _initializationState =
+        MutableStateFlow(ApplicationInitializationState())
+    val initializationState: StateFlow<ApplicationInitializationState> =
+        _initializationState.asStateFlow()
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
@@ -41,12 +55,26 @@ class ParentoApplication : Application() {
         LocalStateService(localStateRepository)
     }
 
-    private val managementStateRepository: LocalManagementStateRepository by lazy {
-        LocalManagementStateRepository(localStateRepository)
-    }
+    private lateinit var logger: ManagedLogger
+    private lateinit var connectivityObserver: ConnectivityObserver
+    private lateinit var startupOrchestrator: ManagedStartupOrchestrator
 
-    private val deviceManagementInitializer: ManagedDeviceInitializer by lazy {
-        ManagedDeviceInitializer(
+    override fun onCreate() {
+        super.onCreate()
+
+        logger = AndroidManagedLogger(ManagedApplicationConfig.get().also {
+            ManagedApplicationConfig.initialize()
+        })
+
+        val databaseResult = runCatching { LocalDatabaseProvider.initialize(this) }
+        if (databaseResult.isFailure) {
+            publishInitializationFailure("database", ManagedError.STORAGE_FAILURE)
+            logger.log(LogLevel.ERROR, "Local database initialization failed.")
+            return
+        }
+
+        val managementStateRepository = LocalManagementStateRepository(localStateRepository)
+        val initializer = ManagedDeviceInitializer(
             localStateRepository = localStateRepository,
             managementStateRepository = managementStateRepository,
             deviceManagementManager = AndroidDeviceManagementManager(
@@ -54,45 +82,102 @@ class ParentoApplication : Application() {
             ),
             policyEngine = DefaultPolicyEngine(),
         )
+        startupOrchestrator = ManagedStartupOrchestrator(initializer)
+
+        // WorkManager is initialized by its AndroidX startup provider. Creating this
+        // boundary does not schedule any work; future jobs must opt in explicitly.
+        WorkManagerBackgroundWorkScheduler(this)
+
+        connectivityObserver = AndroidConnectivityObserver(
+            context = this,
+            onChanged = { availability ->
+                logger.log(LogLevel.DEBUG, "Network availability observed: $availability.")
+            },
+            logger = logger,
+        )
+        connectivityObserver.start()
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            ApplicationLifecycleObserver(
+                onForeground = {
+                    if (_initializationState.value.status == InitializationStatus.READY) {
+                        applicationScope.launch { refreshManagementState() }
+                    }
+                },
+                logger = logger,
+            ),
+        )
+
+        initialize()
+        logger.log(LogLevel.INFO, "Parento Managed startup orchestration started.")
     }
 
-    override fun onCreate() {
-        super.onCreate()
-
-        ManagedApplicationConfig.initialize()
-        LocalDatabaseProvider.initialize(this)
-
-        val logger = AndroidManagedLogger(ManagedApplicationConfig.get())
-
+    private fun initialize() {
+        _initializationState.value = ApplicationInitializationState(
+            status = InitializationStatus.INITIALIZING,
+        )
         applicationScope.launch {
-            val result = when (val local = localStateService.initialize()) {
-                is OperationResult.Failure -> local
-                is OperationResult.Success -> deviceManagementInitializer.initialize()
+            val result = runCatching {
+                when (val local = localStateService.initialize()) {
+                    is OperationResult.Failure -> local
+                    is OperationResult.Success -> startupOrchestrator.initialize()
+                }
+            }.getOrElse {
+                OperationResult.Failure(ManagedError.UNKNOWN)
             }
 
             _managementInitialization.value = result
+            _initializationState.value = when (result) {
+                is OperationResult.Success -> ApplicationInitializationState(
+                    status = InitializationStatus.READY,
+                )
+                is OperationResult.Failure -> ApplicationInitializationState(
+                    status = InitializationStatus.FAILED,
+                    failedSubsystem = "managed-device-initialization",
+                    error = result.error,
+                )
+            }
 
-            when (result) {
-                is OperationResult.Failure ->
-                    logger.log(
-                        LogLevel.ERROR,
-                        "Managed-device platform initialization failed.",
-                    )
-
-                is OperationResult.Success ->
-                    logger.log(
-                        LogLevel.INFO,
-                        "Managed-device platform state initialized.",
-                    )
+            if (result is OperationResult.Failure) {
+                logger.log(LogLevel.ERROR, "Managed-device initialization failed.")
+            } else {
+                logger.log(LogLevel.INFO, "Managed-device initialization completed.")
             }
         }
+    }
 
-        logger.log(LogLevel.INFO, "Parento Managed initialized.")
+    fun retryInitialization() {
+        if (_initializationState.value.status == InitializationStatus.INITIALIZING) return
+        initialize()
+    }
+
+    private suspend fun refreshManagementState() {
+        logger.log(LogLevel.INFO, "Management state refresh started.")
+        val result = startupOrchestrator.refresh()
+        _managementInitialization.value = result
+        if (result is OperationResult.Failure) {
+            logger.log(LogLevel.WARN, "Management state refresh failed.")
+        } else {
+            logger.log(LogLevel.INFO, "Management state refreshed.")
+        }
+    }
+
+    private fun publishInitializationFailure(subsystem: String, error: ManagedError) {
+        _managementInitialization.value = OperationResult.Failure(error)
+        _initializationState.value = ApplicationInitializationState(
+            status = InitializationStatus.FAILED,
+            failedSubsystem = subsystem,
+            error = error,
+        )
     }
 
     override fun onTerminate() {
+        if (::connectivityObserver.isInitialized) connectivityObserver.stop()
         applicationScope.cancel()
-        LocalDatabaseProvider.get().close()
+        if (databaseIsInitialized()) LocalDatabaseProvider.get().close()
         super.onTerminate()
     }
+
+    private fun databaseIsInitialized(): Boolean =
+        runCatching { LocalDatabaseProvider.get() }.isSuccess
 }
