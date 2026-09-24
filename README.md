@@ -13,7 +13,7 @@ The companion repositories are not modified by this phase:
 
 ## Current phase
 
-Phase 4.3 — Device Identity, Enrollment State & Secure Local Configuration
+Phase 4.4 — Device Identity, Enrollment State & Secure Local Configuration
 
 Phase 2.5 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
 
@@ -34,7 +34,7 @@ Android management remains platform-authoritative. Enrollment and connection sta
 
 The installation ID is a locally generated UUID persisted through the Room repository. It is not authorization proof and is not derived from hardware identifiers. Identity initialization is serialized so concurrent callers receive the same identity.
 
-A nullable `managedDeviceId` is reserved for a future backend-assigned identity. Phase 4.3 never invents one.
+A nullable `managedDeviceId` is reserved for a future backend-assigned identity. Phase 4.4 never invents one.
 
 ## Persistence architecture
 
@@ -206,9 +206,9 @@ Expected commands:
 
 Do not treat these commands as completed unless they have actually been executed.
 
-## Phase 4.3 status
+## Phase 4.4 status
 
-The Managed application now has the Android Enterprise foundation plus Phase 4.3 local identity/state separation. Installation identity, backend-assigned managed-device identity, enrollment, connection, and Android management state are distinct. Identity recovery fails closed when existing managed state could otherwise be duplicated. Actual enrollment/pairing and management controls remain deferred.
+The Managed application now has the Android Enterprise foundation plus Phase 4.4 local identity/state separation. Installation identity, backend-assigned managed-device identity, enrollment, connection, and Android management state are distinct. Identity recovery fails closed when existing managed state could otherwise be duplicated. Actual enrollment/pairing and management controls remain deferred.
 
 ## Deferred functionality
 
@@ -235,7 +235,7 @@ The following remain intentionally unimplemented:
 Future sensitive capabilities must use legitimate Android/Android Enterprise APIs and explicit authorization.
 
 
-## Phase 4.3 completion audit
+## Phase 4.4 completion audit
 
 The Phase 2.5 pass reviewed Room initialization, entity/DAO boundaries, repository serialization, local identity stability, persistent/runtime state separation, migration safety, corruption handling, concurrency/idempotency, backup behavior, permissions, manifest security, logging, dependency configuration, and test isolation.
 
@@ -244,3 +244,8 @@ Runtime connection state is deliberately not persisted. After process recreation
 The repository does not implement authentication, backend communication, enrollment, realtime communication, FCM, remote commands, monitoring, location, camera, microphone/audio, screen capture, application/website blocking, device restrictions, or remote policies.
 
 Android Room guidance recommends explicit migration paths when preserving existing on-device data and warns that destructive migration can permanently delete data when used as a fallback. This project therefore keeps explicit migrations and does not enable destructive migration. urlAndroid Room migration guidancehttps://developer.android.com/training/data-storage/room/migrating-db-versions
+
+
+## Phase 4.4 — Lifecycle & Reliability
+
+The Managed app now has centralized startup state, lifecycle-aware management refresh, event-driven connectivity observation, and a WorkManager boundary for explicitly scheduled future jobs. Initialization and state recovery remain Android-supported and fail-closed. See `docs/phase-4.4-lifecycle-reliability.md`.
