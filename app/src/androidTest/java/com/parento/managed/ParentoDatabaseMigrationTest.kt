@@ -128,3 +128,30 @@ class ParentoDatabaseMigrationTest {
         database.close()
     }
 }
+
+
+    @Test
+    fun migrate3To4_addsManagedDeviceMetadataDefaults() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("parento-migration-test-v4")
+                .callback(object : SupportSQLiteOpenHelper.Callback(3) {
+                    override fun onCreate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                        database.execSQL("CREATE TABLE local_application_state (id INTEGER NOT NULL, stateVersion INTEGER NOT NULL, lastSynchronizationTimestamp INTEGER, initialized INTEGER NOT NULL, installationId TEXT, identityCreatedAtEpochMillis INTEGER, enrollmentState TEXT NOT NULL, PRIMARY KEY(id))")
+                    }
+                    override fun onUpgrade(database: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                }).build(),
+        )
+        val database = helper.writableDatabase
+        database.execSQL("INSERT INTO local_application_state (id, stateVersion, lastSynchronizationTimestamp, initialized, installationId, identityCreatedAtEpochMillis, enrollmentState) VALUES (1, 4, 77, 1, 'stable-id', 123, 'ENROLLED')")
+        ParentoDatabase.MIGRATION_3_4.migrate(database)
+        database.query("SELECT managementMode, managementCapabilities, managementStateUpdatedAtEpochMillis FROM local_application_state WHERE id = 1").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("NOT_MANAGED", cursor.getString(0))
+            assertEquals("", cursor.getString(1))
+            assertTrue(cursor.isNull(2))
+        }
+        database.close()
+    }
+}
