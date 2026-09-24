@@ -21,16 +21,15 @@ class LocalStateRepositoryTest {
         assertEquals(false, state.initialized)
         assertEquals(EnrollmentState.UNENROLLED, state.enrollmentState)
         assertEquals(ConnectionState.UNKNOWN, state.connectionState)
+        assertEquals(null, state.managedDeviceId)
     }
 
     @Test
     fun enrollmentTransitions_rejectSkippingRequiredLifecycleStages() {
         assertTrue(EnrollmentState.UNENROLLED.canTransitionTo(EnrollmentState.ENROLLING))
         assertTrue(EnrollmentState.ENROLLING.canTransitionTo(EnrollmentState.ENROLLED))
-        assertTrue(EnrollmentState.ENROLLED.canTransitionTo(EnrollmentState.DISCONNECTED))
-        assertTrue(EnrollmentState.DISCONNECTED.canTransitionTo(EnrollmentState.CONNECTED))
-        assertTrue(EnrollmentState.CONNECTED.canTransitionTo(EnrollmentState.REVOKED))
-        assertFalse(EnrollmentState.UNENROLLED.canTransitionTo(EnrollmentState.CONNECTED))
+        assertTrue(EnrollmentState.ENROLLED.canTransitionTo(EnrollmentState.REVOKED))
+        assertFalse(EnrollmentState.UNENROLLED.canTransitionTo(EnrollmentState.REVOKED))
         assertFalse(EnrollmentState.REVOKED.canTransitionTo(EnrollmentState.ENROLLED))
     }
 
