@@ -11,6 +11,9 @@ import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -62,6 +65,17 @@ class LocalStateRepositoryInstrumentedTest {
 
         assertEquals(identity.installationId, state?.installationId)
         assertEquals(identity.createdAtEpochMillis, state?.identityCreatedAtEpochMillis)
+    }
+
+    @Test
+    fun concurrentIdentityInitialization_returnsOneStableIdentity() = runBlocking {
+        val identities = coroutineScope {
+            (1..50).map { async { (repository.getOrCreateIdentity() as OperationResult.Success).value } }
+                .awaitAll()
+        }
+
+        assertEquals(1, identities.map { it.installationId }.distinct().size)
+        assertEquals(1, identities.map { it.createdAtEpochMillis }.distinct().size)
     }
 
     @Test
