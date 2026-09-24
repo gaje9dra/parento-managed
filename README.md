@@ -92,7 +92,7 @@ Identity initialization is serialized within the repository to prevent duplicate
 
 Room database: parento-managed.db
 
-Current schema version: 3
+Current schema version: 4
 
 Entity:
 - LocalApplicationStateEntity
@@ -102,7 +102,7 @@ DAO:
 
 The singleton primary key keeps local application state to one record.
 
-The explicit MIGRATION_1_2 and MIGRATION_2_3 paths are preserved. MIGRATION_2_3 removes the previously persisted runtime connection column without losing restart-safe state. No destructive migration is enabled.
+The explicit MIGRATION_1_2, MIGRATION_2_3, and MIGRATION_3_4 paths are preserved. MIGRATION_2_3 removes the previously persisted runtime connection column, while MIGRATION_3_4 adds management-mode and capability metadata without losing restart-safe state. No destructive migration is enabled.
 
 ## Error handling
 
