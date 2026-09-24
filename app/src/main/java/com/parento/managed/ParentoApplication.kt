@@ -19,14 +19,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ParentoApplication : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    @Volatile
-    var managementState: ManagementState? = null
-        private set
+    private val _managementInitialization =
+        MutableStateFlow<OperationResult<ManagementState>?>(null)
+
+    val managementInitialization: StateFlow<OperationResult<ManagementState>?> =
+        _managementInitialization.asStateFlow()
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
@@ -60,19 +65,25 @@ class ParentoApplication : Application() {
         val logger = AndroidManagedLogger(ManagedApplicationConfig.get())
 
         applicationScope.launch {
-            when (localStateService.initialize()) {
+            val result = when (val local = localStateService.initialize()) {
+                is OperationResult.Failure -> local
+                is OperationResult.Success -> deviceManagementInitializer.initialize()
+            }
+
+            _managementInitialization.value = result
+
+            when (result) {
                 is OperationResult.Failure ->
-                    logger.log(LogLevel.ERROR, "Parento Managed local state initialization failed.")
-                is OperationResult.Success -> {
-                    when (val result = deviceManagementInitializer.initialize()) {
-                        is OperationResult.Success -> {
-                            managementState = result.value
-                            logger.log(LogLevel.INFO, "Managed-device platform state initialized.")
-                        }
-                        is OperationResult.Failure ->
-                            logger.log(LogLevel.ERROR, "Managed-device platform initialization failed.")
-                    }
-                }
+                    logger.log(
+                        LogLevel.ERROR,
+                        "Managed-device platform initialization failed.",
+                    )
+
+                is OperationResult.Success ->
+                    logger.log(
+                        LogLevel.INFO,
+                        "Managed-device platform state initialized.",
+                    )
             }
         }
 
