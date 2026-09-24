@@ -13,6 +13,9 @@ data class LocalApplicationStateEntity(
     val installationId: String? = null,
     val identityCreatedAtEpochMillis: Long? = null,
     val enrollmentState: String = "UNENROLLED",
+    val managementMode: String = "NOT_MANAGED",
+    val managementCapabilities: String = "",
+    val managementStateUpdatedAtEpochMillis: Long? = null,
 ) {
     companion object {
         const val SINGLETON_ID = 1
