@@ -33,6 +33,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun render() {
         if (::screen.isInitialized && ::viewModel.isInitialized) {
+            val app = application as ParentoApplication
+            app.managementState?.let { state ->
+                viewModel.showManagementState(
+                    managementState = state,
+                    enrollmentState = com.parento.managed.domain.EnrollmentState.UNENROLLED,
+                    connectionState = com.parento.managed.domain.ConnectionState.UNKNOWN,
+                )
+            }
             screen.render(viewModel.uiState)
         }
     }
