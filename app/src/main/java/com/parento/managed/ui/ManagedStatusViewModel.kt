@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.DeviceStatus
 import com.parento.managed.domain.ManagedError
+import com.parento.managed.device.ManagementMode
+import com.parento.managed.lifecycle.ManagementState
 
 class ManagedStatusViewModel(
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
@@ -18,6 +20,40 @@ class ManagedStatusViewModel(
 
     fun showUnenrolled() {
         updateState(ManagedUiState.Unenrolled)
+    }
+
+    fun showManagementState(
+        managementState: ManagementState,
+        enrollmentState: com.parento.managed.domain.EnrollmentState,
+        connectionState: ConnectionState,
+    ) {
+        val status = when (enrollmentState) {
+            com.parento.managed.domain.EnrollmentState.UNENROLLED -> DeviceStatus.UNENROLLED
+            com.parento.managed.domain.EnrollmentState.ENROLLING -> DeviceStatus.ENROLLING
+            com.parento.managed.domain.EnrollmentState.ENROLLED -> DeviceStatus.ENROLLED
+            com.parento.managed.domain.EnrollmentState.CONNECTED -> DeviceStatus.CONNECTED
+            com.parento.managed.domain.EnrollmentState.DISCONNECTED -> DeviceStatus.DISCONNECTED
+            com.parento.managed.domain.EnrollmentState.REVOKED -> DeviceStatus.REVOKED
+            com.parento.managed.domain.EnrollmentState.ERROR -> DeviceStatus.ERROR
+        }
+        val managementLabel = when (managementState.managementMode) {
+            ManagementMode.NOT_MANAGED -> "Not managed by Android Enterprise"
+            ManagementMode.PROFILE_OWNER -> "Profile Owner"
+            ManagementMode.DEVICE_OWNER -> "Device Owner"
+            ManagementMode.UNKNOWN -> "Management mode unavailable"
+        }
+        updateState(
+            ManagedUiState.Content(
+                deviceStatus = status,
+                managementLabel = managementLabel,
+                connectionLabel = when (connectionState) {
+                    ConnectionState.UNKNOWN -> "Connection unknown"
+                    ConnectionState.DISCONNECTED -> "Disconnected"
+                    ConnectionState.CONNECTING -> "Connection pending"
+                    ConnectionState.CONNECTED -> "Connected"
+                },
+            ),
+        )
     }
 
     fun showDeviceState(
