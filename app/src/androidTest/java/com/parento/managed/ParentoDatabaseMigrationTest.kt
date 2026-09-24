@@ -152,4 +152,52 @@ class ParentoDatabaseMigrationTest {
         }
         database.close()
     }
+    @Test
+    fun migrate4To5_addsIndependentConnectionAndManagedDeviceIdentityDefaults() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("parento-migration-test-v5")
+                .callback(object : SupportSQLiteOpenHelper.Callback(4) {
+                    override fun onCreate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                        database.execSQL(
+                            "CREATE TABLE local_application_state (" +
+                                "id INTEGER NOT NULL, " +
+                                "stateVersion INTEGER NOT NULL, " +
+                                "lastSynchronizationTimestamp INTEGER, " +
+                                "initialized INTEGER NOT NULL, " +
+                                "installationId TEXT, " +
+                                "identityCreatedAtEpochMillis INTEGER, " +
+                                "enrollmentState TEXT NOT NULL, " +
+                                "managementMode TEXT NOT NULL, " +
+                                "managementCapabilities TEXT NOT NULL, " +
+                                "managementStateUpdatedAtEpochMillis INTEGER, " +
+                                "PRIMARY KEY(id))",
+                        )
+                    }
+                    override fun onUpgrade(database: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                }).build(),
+        )
+        val database = helper.writableDatabase
+        database.execSQL(
+            "INSERT INTO local_application_state " +
+                "(id, stateVersion, lastSynchronizationTimestamp, initialized, installationId, " +
+                "identityCreatedAtEpochMillis, enrollmentState, managementMode, managementCapabilities) " +
+                "VALUES (1, 5, 77, 1, 'stable-id', 123, 'ENROLLED', 'DEVICE_OWNER', '')",
+        )
+
+        ParentoDatabase.MIGRATION_4_5.migrate(database)
+
+        database.query(
+            "SELECT connectionState, managedDeviceId, enrollmentState, managementMode FROM local_application_state WHERE id = 1",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("UNKNOWN", cursor.getString(0))
+            assertTrue(cursor.isNull(1))
+            assertEquals("ENROLLED", cursor.getString(2))
+            assertEquals("DEVICE_OWNER", cursor.getString(3))
+        }
+        database.close()
+    }
+
 }
