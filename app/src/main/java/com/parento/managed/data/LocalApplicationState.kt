@@ -18,6 +18,7 @@ data class LocalApplicationState(
     val initialized: Boolean = false,
     val installationId: String? = null,
     val identityCreatedAtEpochMillis: Long? = null,
+    val managedDeviceId: String? = null,
     val enrollmentState: EnrollmentState = EnrollmentState.UNENROLLED,
     val connectionState: ConnectionState = ConnectionState.UNKNOWN,
     val managementMode: ManagementMode = ManagementMode.NOT_MANAGED,
