@@ -127,8 +127,6 @@ class ParentoDatabaseMigrationTest {
 
         database.close()
     }
-}
-
 
     @Test
     fun migrate3To4_addsManagedDeviceMetadataDefaults() {
