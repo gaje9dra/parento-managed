@@ -120,5 +120,9 @@ class ManagementStateTest {
             this.state = (this.state ?: LocalApplicationState()).copy(enrollmentState = state)
             return OperationResult.Success(Unit)
         }
+        override suspend fun updateConnectionState(state: com.parento.managed.domain.ConnectionState): OperationResult<Unit> {
+            this.state = (this.state ?: LocalApplicationState()).copy(connectionState = state)
+            return OperationResult.Success(Unit)
+        }
     }
 }
