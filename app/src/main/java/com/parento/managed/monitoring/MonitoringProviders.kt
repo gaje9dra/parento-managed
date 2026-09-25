@@ -15,7 +15,7 @@ import com.parento.managed.device.ManagementModeDetector
 import com.parento.managed.domain.OperationResult
 import java.io.File
 
-interface DeviceInfoProvider { fun get(): OperationResult<DeviceInfo> }
+interface DeviceInfoProvider { suspend fun get(): OperationResult<DeviceInfo> }
 interface BatteryInfoProvider { fun get(): OperationResult<BatteryInfo> }
 interface NetworkInfoProvider { fun get(): OperationResult<NetworkInfo> }
 interface StorageInfoProvider { fun get(): OperationResult<StorageInfo> }
@@ -27,7 +27,7 @@ class AndroidDeviceInfoProvider(
     private val localStateRepository: LocalStateRepository,
     private val managementInfoProvider: ManagementInfoProvider,
 ) : DeviceInfoProvider {
-    override fun get(): OperationResult<DeviceInfo> = runCatching {
+    override suspend fun get(): OperationResult<DeviceInfo> = runCatching {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         val managedDeviceId = when (val r = localStateRepository.getManagedDeviceId()) {
             is OperationResult.Success -> r.value
