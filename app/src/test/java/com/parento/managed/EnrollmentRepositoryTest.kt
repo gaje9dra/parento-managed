@@ -33,7 +33,7 @@ class EnrollmentRepositoryTest {
         val store = FakeStore()
         val repository = EnrollmentRepository(FakeApi(), state, store)
 
-        val result = repository.begin("enrollment-1", "a".repeat(43), System.currentTimeMillis() + 60_000)
+        val result = repository.begin("00000000-0000-0000-0000-000000000001", "a".repeat(43), System.currentTimeMillis() + 60_000)
 
         assertTrue(result is OperationResult.Success)
         assertEquals(EnrollmentState.ENROLLING, state.enrollmentState)
@@ -44,7 +44,7 @@ class EnrollmentRepositoryTest {
     fun successfulConsumptionPersistsManagedDeviceAndClearsSecret() = runBlocking {
         val state = FakeStateRepository()
         val store = FakeStore(
-            PendingEnrollment("enrollment-1", "a".repeat(43), System.currentTimeMillis() + 60_000),
+            PendingEnrollment("00000000-0000-0000-0000-000000000001", "a".repeat(43), System.currentTimeMillis() + 60_000),
         )
         state.enrollmentState = EnrollmentState.ENROLLING
         val repository = EnrollmentRepository(FakeApi(), state, store)
@@ -61,7 +61,7 @@ class EnrollmentRepositoryTest {
     fun duplicateCallsAreSerializedAndDoNotRunTwoOperations() = runBlocking {
         val state = FakeStateRepository()
         val store = FakeStore(
-            PendingEnrollment("enrollment-1", "a".repeat(43), System.currentTimeMillis() + 60_000),
+            PendingEnrollment("00000000-0000-0000-0000-000000000001", "a".repeat(43), System.currentTimeMillis() + 60_000),
         )
         state.enrollmentState = EnrollmentState.ENROLLING
         val api = CountingApi()

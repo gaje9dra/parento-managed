@@ -260,3 +260,51 @@ The Phase 5.1 backend contract is intentionally consumed read-only from this rep
 The Managed app's local Cancel action clears temporary local authorization and returns local enrollment state to UNENROLLED; it does not claim that the administrator-side backend session was cancelled.
 
 A backend recovery/status operation for a Managed installation is not part of Phase 5.1. If a process dies after backend consumption commits but before the client persists the response, the client fails closed rather than guessing the ManagedDevice ID. Automatic retry is therefore intentionally disabled.
+
+
+## Phase 5.5 — Managed Android Enrollment Security Hardening & Phase 5 Completion
+
+Phase 5.5 hardens the Managed Android enrollment implementation without adding Phase 6 functionality.
+
+### Security and recovery hardening
+
+- enrollment operations remain serialized at repository/use-case level
+- pending one-time authorization is restored only when the local state is compatible
+- an authorization left behind after an ERROR/terminal state is cleared rather than replayed
+- an ENROLLING state with no pending authorization recovers to ERROR
+- expired authorization is cleared and returns to UNENROLLED
+- enrollment failures clear the one-time authorization and do not automatically retry an ambiguous consume request
+- successful responses are validated against the consumed enrollment identity before local completion
+- device names are normalized and reject control characters
+- HTTP enrollment responses are bounded to 64 KiB
+- production enrollment requires HTTPS and the manifest continues to disallow cleartext traffic
+- cancellation now surfaces secure-storage failures instead of reporting success unconditionally
+
+### Identity boundaries
+
+The four identity boundaries remain separate:
+
+1. application-generated local installation UUID
+2. backend-assigned ManagedDevice ID
+3. Android Device Owner/Profile Owner management identity
+4. temporary enrollment identity/session
+
+No hardware fingerprinting is introduced.
+
+### Process death and reboot
+
+A pending authorization is stored only in Android encrypted storage. Process recovery never restores a one-time authorization from ERROR, ENROLLED, or REVOKED states. Reboot re-evaluates Android management state from DevicePolicyManager and does not treat enrollment as proof of management.
+
+### Backend dependency
+
+The Managed client consumes only the Phase 5.1 managed-device consume endpoint:
+
+POST /api/v1/devices/enrollments/{enrollmentId}/consume
+
+The current backend contract has no Managed-side status/recovery endpoint for an ambiguous one-time consume request. The client therefore fails closed and requires a fresh administrator-issued authorization after an uncertain failure. No backend repository changes were made.
+
+See docs/phase-5.5-enrollment-security.md for the complete Phase 5.5 security and recovery contract.
+
+### Phase 5 completion boundary
+
+Phase 5 remains limited to secure enrollment and pairing. WebSockets, Socket.IO, FCM commands, remote lock/wipe, camera, microphone, audio, screen capture, live location, application blocking, website filtering, network filtering, remote policy enforcement, and remote device configuration remain deferred.

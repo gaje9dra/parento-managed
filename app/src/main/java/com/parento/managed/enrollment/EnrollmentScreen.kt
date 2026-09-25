@@ -110,11 +110,11 @@ class EnrollmentScreen(
             status.text = context.getString(R.string.enrollment_input_invalid)
             return
         }
-        if (deviceName.text.toString().trim().isBlank()) {
+        if (deviceName.edit.text.toString().trim().isBlank()) {
             status.text = context.getString(R.string.device_name_required)
             return
         }
-        onStart(id, token, expires, deviceName.text.toString().trim())
+        onStart(id, token, expires, deviceName.edit.text.toString().trim())
     }
 
     private fun setPendingVisible(pending: Boolean) {

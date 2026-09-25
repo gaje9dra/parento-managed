@@ -114,6 +114,13 @@ class ManagementStateTest {
             OperationResult.Success(state?.connectionState ?: com.parento.managed.domain.ConnectionState.UNKNOWN)
         override suspend fun getManagedDeviceId(): OperationResult<String?> =
             OperationResult.Success(state?.managedDeviceId)
+        override suspend fun completeEnrollment(managedDeviceId: String): OperationResult<Unit> {
+            state = (state ?: LocalApplicationState()).copy(
+                managedDeviceId = managedDeviceId,
+                enrollmentState = EnrollmentState.ENROLLED,
+            )
+            return OperationResult.Success(Unit)
+        }
         override suspend fun initializeLocalState(): OperationResult<LocalApplicationState> {
             state = (state ?: LocalApplicationState()).copy(
                 initialized = true,

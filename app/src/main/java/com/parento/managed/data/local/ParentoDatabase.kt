@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [LocalApplicationStateEntity::class],
     version = 5,
-    exportSchema = true,
+    exportSchema = false,
 )
 abstract class ParentoDatabase : RoomDatabase() {
     abstract fun localApplicationStateDao(): LocalApplicationStateDao
