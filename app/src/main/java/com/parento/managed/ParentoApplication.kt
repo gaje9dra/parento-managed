@@ -24,6 +24,9 @@ import com.parento.managed.domain.OperationResult
 import com.parento.managed.logging.AndroidManagedLogger
 import com.parento.managed.logging.LogLevel
 import com.parento.managed.logging.ManagedLogger
+import com.parento.managed.enrollment.AndroidSecureEnrollmentStore
+import com.parento.managed.enrollment.EnrollmentRepository
+import com.parento.managed.enrollment.HttpEnrollmentApiClient
 import com.parento.managed.policy.DefaultPolicyEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +49,18 @@ class ParentoApplication : Application() {
         MutableStateFlow(ApplicationInitializationState())
     val initializationState: StateFlow<ApplicationInitializationState> =
         _initializationState.asStateFlow()
+
+    val enrollmentRepository: EnrollmentRepository by lazy {
+        val config = ManagedApplicationConfig.get()
+        EnrollmentRepository(
+            apiClient = HttpEnrollmentApiClient(
+                baseUrl = config.backendBaseUrl,
+                requireHttps = config.security.requireHttps,
+            ),
+            localStateRepository = localStateRepository,
+            secureStore = AndroidSecureEnrollmentStore(this),
+        )
+    }
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
