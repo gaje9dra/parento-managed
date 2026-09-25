@@ -3,6 +3,9 @@ package com.parento.managed.monitoring
 import org.json.JSONObject
 
 object MonitoringTelemetrySerializer {
+    private fun JSONObject.putNullable(key: String, value: Any?): JSONObject =
+        put(key, value ?: JSONObject.NULL)
+
     const val SCHEMA_VERSION = 1
 
     fun serialize(snapshot: MonitoringSnapshot): JSONObject {
@@ -16,18 +19,18 @@ object MonitoringTelemetrySerializer {
             .put("appVersion", device.appVersion)
             .put("appVersionCode", device.appVersionCode)
             .put("managementMode", snapshot.managementMode.name)
-            .put("batteryPercentage", snapshot.battery.percentage)
+            .putNullable("batteryPercentage", snapshot.battery.percentage)
             .put("chargingState", snapshot.battery.chargingState.name)
             .put("batteryStatus", snapshot.battery.status.name)
             .put("networkState", snapshot.network.state.name)
-            .put("storageTotalBytes", snapshot.storage.totalBytes)
-            .put("storageAvailableBytes", snapshot.storage.availableBytes)
-            .put("storageUsedBytes", snapshot.storage.usedBytes)
-            .put("memoryTotalBytes", snapshot.memory.totalBytes)
-            .put("memoryAvailableBytes", snapshot.memory.availableBytes)
-            .put("memoryLow", snapshot.memory.lowMemory)
-            .put("lastSuccessfulInitializationEpochMillis", snapshot.lastSuccessfulInitializationEpochMillis)
-            .put("lastSuccessfulCommunicationEpochMillis", snapshot.lastSuccessfulCommunicationEpochMillis)
+            .putNullable("storageTotalBytes", snapshot.storage.totalBytes)
+            .putNullable("storageAvailableBytes", snapshot.storage.availableBytes)
+            .putNullable("storageUsedBytes", snapshot.storage.usedBytes)
+            .putNullable("memoryTotalBytes", snapshot.memory.totalBytes)
+            .putNullable("memoryAvailableBytes", snapshot.memory.availableBytes)
+            .putNullable("memoryLow", snapshot.memory.lowMemory)
+            .putNullable("lastSuccessfulInitializationEpochMillis", snapshot.lastSuccessfulInitializationEpochMillis)
+            .putNullable("lastSuccessfulCommunicationEpochMillis", snapshot.lastSuccessfulCommunicationEpochMillis)
             .put("lastMonitoringUpdateEpochMillis", snapshot.lastMonitoringUpdateEpochMillis)
     }
 }
