@@ -70,7 +70,7 @@ class EnrollmentRepository(
         }
     }
 
-    suspend fun enroll(name: String): OperationResult<EnrollmentResult> = mutex.withLock {
+    suspend fun enroll(name: String): OperationResult<EnrollmentResult> = mutex.withLock {\n        val normalizedName = name.trim()\n        if (normalizedName.isBlank() || normalizedName.length > 100) {\n            return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)\n        }
         val pending = when (val stored = secureStore.read()) {
             is OperationResult.Failure -> return@withLock stored
             is OperationResult.Success -> stored.value
@@ -123,3 +123,10 @@ class EnrollmentRepository(
         }
     }
 }
+
+
+private fun isValidEnrollmentId(value: String): Boolean =
+    runCatching { java.util.UUID.fromString(value.trim()) }.isSuccess
+
+private fun isValidAuthorizationSecret(value: String): Boolean =
+    value.trim().length == 43 && value.trim().matches(Regex("[A-Za-z0-9_-]{43}"))
