@@ -15,8 +15,8 @@ class LocationCoordinator(
                 when (val saved = repository.saveObserved(result.location)) {
                     is OperationResult.Failure -> saved
                     is OperationResult.Success -> {
-                        when (reporter.reportLatest()) {
-                            is OperationResult.Failure -> OperationResult.Failure(result.error)
+                        when (val reported = reporter.reportLatest()) {
+                            is OperationResult.Failure -> reported
                             is OperationResult.Success -> OperationResult.Success(LocationCapabilityState.AVAILABLE)
                         }
                     }
