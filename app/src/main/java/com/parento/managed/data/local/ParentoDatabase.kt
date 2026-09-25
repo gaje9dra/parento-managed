@@ -8,14 +8,15 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [LocalApplicationStateEntity::class, ManagedCommandEntity::class, MonitoringSnapshotEntity::class],
-    version = 7,
+    entities = [LocalApplicationStateEntity::class, ManagedCommandEntity::class, MonitoringSnapshotEntity::class, LocationStateEntity::class],
+    version = 8,
     exportSchema = false,
 )
 abstract class ParentoDatabase : RoomDatabase() {
     abstract fun localApplicationStateDao(): LocalApplicationStateDao
     abstract fun managedCommandDao(): ManagedCommandDao
     abstract fun monitoringSnapshotDao(): MonitoringSnapshotDao
+    abstract fun locationStateDao(): LocationStateDao
 
     companion object {
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
@@ -80,8 +81,19 @@ abstract class ParentoDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""CREATE TABLE location_state (
+                    id INTEGER NOT NULL PRIMARY KEY, reportId TEXT NOT NULL, availability TEXT NOT NULL,
+                    latitude REAL, longitude REAL, accuracyMeters REAL, altitudeMeters REAL,
+                    bearingDegrees REAL, speedMetersPerSecond REAL, observedAtEpochMillis INTEGER NOT NULL,
+                    lastReportStatus TEXT NOT NULL, lastReportAttemptEpochMillis INTEGER,
+                    lastSuccessfulReportEpochMillis INTEGER)""".trimIndent())
+            }
+        }
+
         fun builder(context: Context): RoomDatabase.Builder<ParentoDatabase> =
             Room.databaseBuilder(context.applicationContext, ParentoDatabase::class.java, "parento-managed.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
     }
 }
