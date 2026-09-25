@@ -82,7 +82,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.2")
     implementation("androidx.room:room-ktx:2.7.2")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.security:security-crypto:1.1.0")
     kapt("androidx.room:room-compiler:2.7.2")
     testImplementation("androidx.room:room-testing:2.7.2")
     androidTestImplementation("androidx.room:room-testing:2.7.2")
