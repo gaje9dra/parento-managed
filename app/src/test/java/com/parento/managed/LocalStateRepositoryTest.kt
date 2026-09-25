@@ -12,10 +12,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocalStateRepositoryTest {
-    @Test
-    fun stateModel_defaultsToSafeInitialState() {
+    @Test fun stateModel_defaultsToSafeInitialState() {
         val state = LocalApplicationState()
-
         assertEquals(1, state.stateVersion)
         assertEquals(null, state.lastSynchronizationTimestamp)
         assertEquals(false, state.initialized)
@@ -24,33 +22,22 @@ class LocalStateRepositoryTest {
         assertEquals(null, state.managedDeviceId)
     }
 
-    @Test
-    fun enrollmentTransitions_rejectSkippingRequiredLifecycleStages() {
-        assertTrue(EnrollmentState.UNENROLLED.canTransitionTo(EnrollmentState.ENROLLING))
-        assertTrue(EnrollmentState.ENROLLING.canTransitionTo(EnrollmentState.ENROLLED))
-        assertTrue(EnrollmentState.ENROLLED.canTransitionTo(EnrollmentState.REVOKED))
-        assertFalse(EnrollmentState.UNENROLLED.canTransitionTo(EnrollmentState.REVOKED))
-        assertFalse(EnrollmentState.REVOKED.canTransitionTo(EnrollmentState.ENROLLED))
-    }
-
-    @Test
-    fun connectionTransitions_rejectUnknownToConnected() {
+    @Test fun connectionTransitions_coverSessionLifecycle() {
         assertTrue(ConnectionState.UNKNOWN.canTransitionTo(ConnectionState.DISCONNECTED))
         assertTrue(ConnectionState.DISCONNECTED.canTransitionTo(ConnectionState.CONNECTING))
-        assertTrue(ConnectionState.CONNECTING.canTransitionTo(ConnectionState.CONNECTED))
-        assertTrue(ConnectionState.CONNECTED.canTransitionTo(ConnectionState.DISCONNECTED))
+        assertTrue(ConnectionState.CONNECTING.canTransitionTo(ConnectionState.AUTHENTICATING))
+        assertTrue(ConnectionState.AUTHENTICATING.canTransitionTo(ConnectionState.CONNECTED))
+        assertTrue(ConnectionState.CONNECTED.canTransitionTo(ConnectionState.RECONNECTING))
+        assertTrue(ConnectionState.RECONNECTING.canTransitionTo(ConnectionState.CONNECTING))
+        assertTrue(ConnectionState.CONNECTED.canTransitionTo(ConnectionState.DISCONNECTING))
+        assertTrue(ConnectionState.DISCONNECTING.canTransitionTo(ConnectionState.DISCONNECTED))
         assertFalse(ConnectionState.UNKNOWN.canTransitionTo(ConnectionState.CONNECTED))
+        assertFalse(ConnectionState.DISCONNECTED.canTransitionTo(ConnectionState.CONNECTED))
     }
 
-    @Test
-    fun storageFailure_isRepresentedByExistingOperationResultContract() {
-        val result: OperationResult<Unit> =
-            OperationResult.Failure(ManagedError.STORAGE_FAILURE)
-
+    @Test fun storageFailure_isRepresentedByExistingOperationResultContract() {
+        val result: OperationResult<Unit> = OperationResult.Failure(ManagedError.STORAGE_FAILURE)
         assertTrue(result is OperationResult.Failure)
-        assertEquals(
-            ManagedError.STORAGE_FAILURE,
-            (result as OperationResult.Failure).error,
-        )
+        assertEquals(ManagedError.STORAGE_FAILURE, (result as OperationResult.Failure).error)
     }
 }

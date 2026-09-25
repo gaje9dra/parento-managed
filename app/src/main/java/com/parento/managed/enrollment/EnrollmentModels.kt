@@ -9,6 +9,7 @@ data class EnrollmentResult(
     val managedDeviceId: String,
     val enrollmentId: String,
     val expiresAtEpochMillis: Long,
+    val deviceCredential: String,
 )
 
 data class PendingEnrollment(
