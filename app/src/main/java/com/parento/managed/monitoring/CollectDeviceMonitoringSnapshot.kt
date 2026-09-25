@@ -30,6 +30,7 @@ class CollectDeviceMonitoringSnapshot(
         val managementMode = (managementInfoProvider.get() as? OperationResult.Success)?.value
             ?: deviceInfo.managementMode
 
+        val localState = (localStateRepository.read() as? OperationResult.Success)?.value
         val snapshot = MonitoringSnapshot(
             collectedAtEpochMillis = collectedAt,
             deviceInfo = deviceInfo.copy(managementMode = managementMode),
@@ -38,8 +39,8 @@ class CollectDeviceMonitoringSnapshot(
             storage = storage,
             memory = memory,
             managementMode = managementMode,
-            lastSuccessfulInitializationEpochMillis = collectedAt,
-            lastSuccessfulCommunicationEpochMillis = null,
+            lastSuccessfulInitializationEpochMillis = localState?.managementStateUpdatedAtEpochMillis,
+            lastSuccessfulCommunicationEpochMillis = localState?.lastSynchronizationTimestamp,
             lastMonitoringUpdateEpochMillis = collectedAt,
         )
         return when (val saved = monitoringRepository.save(snapshot)) {
