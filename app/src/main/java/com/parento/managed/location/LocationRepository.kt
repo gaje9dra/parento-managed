@@ -30,6 +30,9 @@ class RoomLocationRepository(
         runCatching {
             require(location.latitude.isFinite() && location.longitude.isFinite())
             require(location.latitude in -90.0..90.0 && location.longitude in -180.0..180.0)
+            require(location.accuracyMeters == null || (location.accuracyMeters.isFinite() && location.accuracyMeters in 0.0..100000.0))
+            require(location.bearingDegrees == null || (location.bearingDegrees.isFinite() && location.bearingDegrees in 0.0..360.0))
+            require(location.speedMetersPerSecond == null || (location.speedMetersPerSecond.isFinite() && location.speedMetersPerSecond >= 0.0))
             val current = dao.read()?.toDomain()
             val stored = StoredLocation(
                 reportId = UUID.randomUUID().toString(),
