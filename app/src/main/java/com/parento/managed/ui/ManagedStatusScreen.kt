@@ -82,7 +82,7 @@ class ManagedStatusScreen(
         addMessage(state.connectionLabel)
         addMessage(context.getString(R.string.location_status_title))
         addMessage(locationLabel(state.locationCapability))
-        if (state.locationCapability == LocationCapabilityState.PERMISSION_REQUIRED || state.locationCapability == LocationCapabilityState.BACKGROUND_REQUIRED) {
+        if (state.locationCapability == LocationCapabilityState.PERMISSION_REQUIRED || state.locationCapability == LocationCapabilityState.BACKGROUND_PERMISSION_REQUIRED) {
             addAction(context.getString(R.string.enable_location), onRequestLocationPermission)
         }
         addMessage(context.getString(R.string.no_device_features_message))
@@ -103,6 +103,7 @@ class ManagedStatusScreen(
         LocationCapabilityState.AVAILABLE -> context.getString(R.string.location_available)
         LocationCapabilityState.PERMISSION_REQUIRED -> context.getString(R.string.location_permission_required)
         LocationCapabilityState.PERMISSION_DENIED -> context.getString(R.string.location_permission_denied)
+        LocationCapabilityState.BACKGROUND_PERMISSION_REQUIRED -> context.getString(R.string.location_background_permission_required)
         LocationCapabilityState.LOCATION_SERVICES_DISABLED -> context.getString(R.string.location_services_disabled)
         LocationCapabilityState.PROVIDER_UNAVAILABLE -> context.getString(R.string.location_provider_unavailable)
         LocationCapabilityState.TEMPORARILY_UNAVAILABLE -> context.getString(R.string.location_temporarily_unavailable)
