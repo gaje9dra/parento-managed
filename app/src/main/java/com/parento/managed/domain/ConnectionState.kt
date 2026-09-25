@@ -9,8 +9,12 @@ enum class ConnectionState {
 
 fun ConnectionState.canTransitionTo(target: ConnectionState): Boolean =
     when (this) {
-        UNKNOWN -> target == DISCONNECTED || target == CONNECTING
-        DISCONNECTED -> target == CONNECTING
-        CONNECTING -> target == CONNECTED || target == DISCONNECTED
-        CONNECTED -> target == DISCONNECTED
+        ConnectionState.UNKNOWN ->
+            target == ConnectionState.DISCONNECTED || target == ConnectionState.CONNECTING
+        ConnectionState.DISCONNECTED ->
+            target == ConnectionState.CONNECTING
+        ConnectionState.CONNECTING ->
+            target == ConnectionState.CONNECTED || target == ConnectionState.DISCONNECTED
+        ConnectionState.CONNECTED ->
+            target == ConnectionState.DISCONNECTED
     }
