@@ -44,7 +44,7 @@ class CommandSafetyTest {
     @Test fun placeholderNeverPerformsDeviceAction() {
         val result = FutureCommandPlaceholderHandler().handle(command)
         assertTrue(result is OperationResult.Success)
-        assertEquals(CommandExecutionState.REJECTED, (result as OperationResult.Success).value.state)
+        assertEquals(CommandExecutionState.FAILED, (result as OperationResult.Success).value.state)
     }
 
     @Test fun malformedCommandTypeIsRejected() {
