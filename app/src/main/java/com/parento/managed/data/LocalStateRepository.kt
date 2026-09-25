@@ -33,6 +33,7 @@ interface ConnectionStateRepository {
 
 interface ManagedDeviceStateRepository {
     suspend fun getManagedDeviceId(): OperationResult<String?>
+    suspend fun completeEnrollment(managedDeviceId: String): OperationResult<Unit>
 }
 
 interface LocalStateRepository :
@@ -159,6 +160,23 @@ class RoomLocalStateRepository(
 
     override suspend fun getManagedDeviceId(): OperationResult<String?> =
         runStorageOperation { dao.read()?.managedDeviceId }
+
+    override suspend fun completeEnrollment(managedDeviceId: String): OperationResult<Unit> =
+        stateMutex.withLock {
+            runStorageOperation {
+                require(managedDeviceId.isNotBlank())
+                val current = dao.read()?.toDomain() ?: LocalApplicationState()
+                if (current.enrollmentState != EnrollmentState.ENROLLING) {
+                    throw InvalidLocalStateTransitionException()
+                }
+                dao.upsert(
+                    current.copy(
+                        managedDeviceId = managedDeviceId.trim(),
+                        enrollmentState = EnrollmentState.ENROLLED,
+                    ).toEntity(),
+                )
+            }
+        }
 
     override suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit> =
         stateMutex.withLock {
