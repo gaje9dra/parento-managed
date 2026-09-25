@@ -24,6 +24,7 @@ class LocationWorker(
             is OperationResult.Success -> when (result.value) {
                 LocationCapabilityState.PERMISSION_REQUIRED,
                 LocationCapabilityState.PERMISSION_DENIED,
+                LocationCapabilityState.BACKGROUND_PERMISSION_REQUIRED,
                 LocationCapabilityState.LOCATION_SERVICES_DISABLED,
                 LocationCapabilityState.PROVIDER_UNAVAILABLE -> Result.success()
                 LocationCapabilityState.TEMPORARILY_UNAVAILABLE -> Result.retry()
