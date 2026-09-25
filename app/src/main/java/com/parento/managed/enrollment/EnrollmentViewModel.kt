@@ -20,6 +20,7 @@ class EnrollmentViewModel(private val repository: EnrollmentRepository) : ViewMo
     val state: StateFlow<EnrollmentUiState> = _state.asStateFlow()
 
     fun restore() {
+        if (_state.value.busy) return
         viewModelScope.launch {
             when (val result = repository.restorePending()) {
                 is OperationResult.Failure ->
@@ -68,18 +69,26 @@ class EnrollmentViewModel(private val repository: EnrollmentRepository) : ViewMo
         if (_state.value.busy) return
         viewModelScope.launch {
             _state.value = _state.value.copy(busy = true, message = null)
-            repository.cancel()
-            _state.value = _state.value.copy(
-                busy = false,
-                pending = null,
-                message = "Enrollment cancelled.",
-            )
+            when (val result = repository.cancel()) {
+                is OperationResult.Failure ->
+                    _state.value = _state.value.copy(
+                        busy = false,
+                        message = messageFor(result.error),
+                    )
+                is OperationResult.Success ->
+                    _state.value = _state.value.copy(
+                        busy = false,
+                        pending = null,
+                        message = "Enrollment cancelled.",
+                    )
+            }
         }
     }
 
     private fun messageFor(error: ManagedError): String = when (error) {
         ManagedError.NETWORK_FAILURE -> "Unable to reach the Parento backend."
-        ManagedError.AUTHORIZATION_FAILURE -> "The enrollment authorization was rejected."\n        ManagedError.RATE_LIMITED -> "Too many enrollment attempts. Try again later."
+        ManagedError.AUTHORIZATION_FAILURE -> "The enrollment authorization was rejected."
+        ManagedError.RATE_LIMITED -> "Too many enrollment attempts. Try again later."
         ManagedError.AUTHENTICATION_FAILURE -> "Authentication failed."
         ManagedError.INVALID_STATE -> "This enrollment is expired, already used, revoked, or unavailable."
         ManagedError.STORAGE_FAILURE -> "Secure local enrollment storage is unavailable."
