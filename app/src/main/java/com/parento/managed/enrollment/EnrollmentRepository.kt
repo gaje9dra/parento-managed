@@ -36,8 +36,8 @@ class EnrollmentRepository(
         expiresAtEpochMillis: Long,
     ): OperationResult<PendingEnrollment> = mutex.withLock {
         if (
-            enrollmentId.isBlank() ||
-            authorizationSecret.isBlank() ||
+            !isValidEnrollmentId(enrollmentId) ||
+            !isValidAuthorizationSecret(authorizationSecret) ||
             expiresAtEpochMillis <= System.currentTimeMillis()
         ) {
             return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
@@ -70,7 +70,11 @@ class EnrollmentRepository(
         }
     }
 
-    suspend fun enroll(name: String): OperationResult<EnrollmentResult> = mutex.withLock {\n        val normalizedName = name.trim()\n        if (normalizedName.isBlank() || normalizedName.length > 100) {\n            return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)\n        }
+    suspend fun enroll(name: String): OperationResult<EnrollmentResult> = mutex.withLock {
+        val normalizedName = name.trim()
+        if (normalizedName.isBlank() || normalizedName.length > 100) {
+            return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
+        }
         val pending = when (val stored = secureStore.read()) {
             is OperationResult.Failure -> return@withLock stored
             is OperationResult.Success -> stored.value
@@ -91,7 +95,7 @@ class EnrollmentRepository(
             val result = apiClient.consume(
                 EnrollmentAuthorization(pending.enrollmentId, pending.authorizationSecret),
                 identity.installationId,
-                name,
+                normalizedName,
             )
         ) {
             is OperationResult.Failure -> {
