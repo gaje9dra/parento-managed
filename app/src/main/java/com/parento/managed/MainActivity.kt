@@ -1,6 +1,9 @@
 package com.parento.managed
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -9,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.activity.result.contract.ActivityResultContracts
 import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.OperationResult
@@ -18,6 +22,9 @@ import com.parento.managed.enrollment.EnrollmentViewModelFactory
 import com.parento.managed.ui.ManagedStatusScreen
 import com.parento.managed.ui.ManagedStatusViewModel
 import com.parento.managed.monitoring.RoomMonitoringRepository
+import com.parento.managed.location.LocationCapabilityState
+import com.parento.managed.permission.AndroidLocationPermissionCapability
+import android.Manifest
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -27,15 +34,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var enrollmentScreen: EnrollmentScreen
     private lateinit var enrollmentContainer: LinearLayout
 
+    private val foregroundLocationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { app?.let { refreshLocationUi(it) } }
+
+    private var app: ParentoApplication? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
 
         val app = application as ParentoApplication
+        this.app = app
         statusViewModel = ViewModelProvider(this)[ManagedStatusViewModel::class.java]
         enrollmentViewModel = ViewModelProvider(this, EnrollmentViewModelFactory(app.enrollmentRepository))[EnrollmentViewModel::class.java]
 
-        statusScreen = ManagedStatusScreen(this) { app.retryInitialization() }
+        statusScreen = ManagedStatusScreen(this, { app.retryInitialization() }) { requestLocationAccess() }
         enrollmentScreen = EnrollmentScreen(
             context = this,
             onStart = { id, secret, expiresAt, _ -> enrollmentViewModel.start(id, secret, expiresAt) },
@@ -67,7 +81,7 @@ class MainActivity : AppCompatActivity() {
                             is OperationResult.Failure -> statusViewModel.showError(result.error, "Managed-device state is currently unavailable.", true)
                             is OperationResult.Success -> {
                                 val state = result.value
-                                statusViewModel.showManagementState(state, state.enrollmentState, app.connectionState.value)
+                                statusViewModel.showManagementState(state, state.enrollmentState, app.connectionState.value, locationCapability = app.locationCoordinator.capability())
                                 enrollmentContainer.visibility = if (state.enrollmentState == EnrollmentState.ENROLLED) View.GONE else View.VISIBLE
                             }
                         }
@@ -79,7 +93,7 @@ class MainActivity : AppCompatActivity() {
                         val current = app.managementInitialization.value
                         if (current is OperationResult.Success) {
                             val snapshot = (monitoring as? OperationResult.Success)?.value
-                            statusViewModel.showManagementState(current.value, current.value.enrollmentState, app.connectionState.value, snapshot)
+                            statusViewModel.showManagementState(current.value, current.value.enrollmentState, app.connectionState.value, snapshot, app.locationCoordinator.capability())
                             statusScreen.render(statusViewModel.uiState)
                         }
                     }
@@ -93,6 +107,7 @@ class MainActivity : AppCompatActivity() {
                                 current.value.enrollmentState,
                                 connection,
                                 null,
+                                app.locationCoordinator.capability(),
                             )
                             statusScreen.render(statusViewModel.uiState)
                         }
@@ -109,4 +124,30 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    private fun requestLocationAccess() {
+        val permissions = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        )
+        foregroundLocationPermissionLauncher.launch(permissions.toTypedArray())
+    }
+
+    private fun refreshLocationUi(app: ParentoApplication) {
+        val current = app.managementInitialization.value
+        if (current is OperationResult.Success) {
+            statusViewModel.showManagementState(
+                current.value,
+                current.value.enrollmentState,
+                app.connectionState.value,
+                locationCapability = app.locationCoordinator.capability(),
+            )
+            statusScreen.render(statusViewModel.uiState)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        app?.let { refreshLocationUi(it) }
+    }
+
 }
