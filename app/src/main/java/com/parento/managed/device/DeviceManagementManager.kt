@@ -116,25 +116,34 @@ class AndroidDeviceManagementManager(
             // These operations are intentionally not implemented in Phase 4.2.
             CapabilityState(
                 DeviceManagementCapability.POLICY_SUPPORT,
-                if (managed) CapabilityStatus.NOT_SUPPORTED
-                else CapabilityStatus.REQUIRES_AUTHORIZATION,
+                when {
+                    detection.error != null -> CapabilityStatus.ERROR
+                    managed -> CapabilityStatus.NOT_SUPPORTED
+                    else -> CapabilityStatus.REQUIRES_AUTHORIZATION
+                },
             ),
             CapabilityState(
                 DeviceManagementCapability.LOCK_CAPABILITY,
-                if (managed) CapabilityStatus.NOT_SUPPORTED
-                else CapabilityStatus.REQUIRES_AUTHORIZATION,
+                when {
+                    detection.error != null -> CapabilityStatus.ERROR
+                    managed -> CapabilityStatus.NOT_SUPPORTED
+                    else -> CapabilityStatus.REQUIRES_AUTHORIZATION
+                },
             ),
             CapabilityState(
                 DeviceManagementCapability.APP_MANAGEMENT_CAPABILITY,
-                if (managed) CapabilityStatus.NOT_SUPPORTED
-                else CapabilityStatus.REQUIRES_AUTHORIZATION,
+                when {
+                    detection.error != null -> CapabilityStatus.ERROR
+                    managed -> CapabilityStatus.NOT_SUPPORTED
+                    else -> CapabilityStatus.REQUIRES_AUTHORIZATION
+                },
             ),
             CapabilityState(
                 DeviceManagementCapability.NETWORK_RESTRICTION_CAPABILITY,
-                if (detection.mode == ManagementMode.DEVICE_OWNER) {
-                    CapabilityStatus.NOT_SUPPORTED
-                } else {
-                    CapabilityStatus.REQUIRES_AUTHORIZATION
+                when {
+                    detection.error != null -> CapabilityStatus.ERROR
+                    detection.mode == ManagementMode.DEVICE_OWNER -> CapabilityStatus.NOT_SUPPORTED
+                    else -> CapabilityStatus.REQUIRES_AUTHORIZATION
                 },
             ),
             CapabilityState(
