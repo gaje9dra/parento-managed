@@ -15,7 +15,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
-        buildConfigField("boolean", "PARENTO_FEATURE_ENROLLMENT", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_ENROLLMENT", "true")
         buildConfigField("boolean", "PARENTO_FEATURE_REALTIME", "false")
         buildConfigField("boolean", "PARENTO_FEATURE_LOCATION", "false")
         buildConfigField("boolean", "PARENTO_FEATURE_SCREEN_SHARING", "false")
@@ -82,6 +82,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.2")
     implementation("androidx.room:room-ktx:2.7.2")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     kapt("androidx.room:room-compiler:2.7.2")
     testImplementation("androidx.room:room-testing:2.7.2")
     androidTestImplementation("androidx.room:room-testing:2.7.2")
