@@ -79,7 +79,7 @@ class EnrollmentViewModel(private val repository: EnrollmentRepository) : ViewMo
 
     private fun messageFor(error: ManagedError): String = when (error) {
         ManagedError.NETWORK_FAILURE -> "Unable to reach the Parento backend."
-        ManagedError.AUTHORIZATION_FAILURE -> "The enrollment authorization was rejected."
+        ManagedError.AUTHORIZATION_FAILURE -> "The enrollment authorization was rejected."\n        ManagedError.RATE_LIMITED -> "Too many enrollment attempts. Try again later."
         ManagedError.AUTHENTICATION_FAILURE -> "Authentication failed."
         ManagedError.INVALID_STATE -> "This enrollment is expired, already used, revoked, or unavailable."
         ManagedError.STORAGE_FAILURE -> "Secure local enrollment storage is unavailable."
