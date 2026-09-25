@@ -26,6 +26,9 @@ class AndroidLocationProvider(context: Context) : LocationProvider {
         val fine = ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarse = ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (!fine && !coarse) return LocationCapabilityState.PERMISSION_REQUIRED
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED
+        ) return LocationCapabilityState.BACKGROUND_PERMISSION_REQUIRED
         val providers = runCatching { locationManager?.allProviders.orEmpty() }.getOrDefault(emptyList())
         if (providers.isEmpty()) return LocationCapabilityState.PROVIDER_UNAVAILABLE
         val enabled = providers.any { runCatching { locationManager?.isProviderEnabled(it) == true }.getOrDefault(false) }
