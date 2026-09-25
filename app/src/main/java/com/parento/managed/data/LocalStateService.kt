@@ -24,6 +24,12 @@ class LocalStateService(
                 is OperationResult.Failure -> return@withLock result
             }
 
+            if (current != null && !isValidPersistedIdentity(current)) {
+                return@withLock OperationResult.Failure(
+                    com.parento.managed.domain.ManagedError.STORAGE_FAILURE,
+                )
+            }
+
             val initialized = when {
                 current == null -> repository.initializeLocalState()
                 current.installationId.isNullOrBlank() ||
@@ -91,4 +97,12 @@ class LocalStateService(
 
     suspend fun recoverMissingIdentity(): OperationResult<LocalDeviceIdentity> =
         repository.getOrCreateIdentity()
+}
+
+private fun isValidPersistedIdentity(state: LocalApplicationState): Boolean {
+    val id = state.installationId
+    val createdAt = state.identityCreatedAtEpochMillis
+    if (id.isNullOrBlank() && createdAt == null) return true
+    if (id.isNullOrBlank() || createdAt == null || createdAt <= 0L) return false
+    return runCatching { java.util.UUID.fromString(id) }.isSuccess
 }
