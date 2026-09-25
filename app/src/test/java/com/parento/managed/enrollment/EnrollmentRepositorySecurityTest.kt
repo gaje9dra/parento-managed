@@ -27,7 +27,7 @@ class EnrollmentRepositorySecurityTest {
         val local = FakeLocalStateRepository()
         val store = FakeEnrollmentStore()
         val api = FakeEnrollmentApi(OperationResult.Failure(ManagedError.NETWORK_FAILURE))
-        val repository = EnrollmentRepository(api, local, store)
+        val repository = EnrollmentRepository(api, local, store, FakeCredentialStore())
 
         assertTrue(repository.begin(enrollmentId, secret, System.currentTimeMillis() + 60_000) is OperationResult.Success)
         val result = repository.enroll("Child phone")
@@ -55,7 +55,7 @@ class EnrollmentRepositorySecurityTest {
         val local = FakeLocalStateRepository()
         val store = FakeEnrollmentStore()
         val api = FakeEnrollmentApi(OperationResult.Success(EnrollmentResult(UUID.randomUUID().toString(), UUID.randomUUID().toString(), System.currentTimeMillis() + 60_000, "B".repeat(43))))
-        val repository = EnrollmentRepository(api, local, store)
+        val repository = EnrollmentRepository(api, local, store, FakeCredentialStore())
 
         repository.begin(enrollmentId, secret, System.currentTimeMillis() + 60_000)
         val result = repository.enroll("Child phone")
