@@ -88,8 +88,14 @@ class HttpEnrollmentApiClient(
                 OperationResult.Failure(ManagedError.INVALID_STATE)
             status == 409 || status == 410 ->
                 OperationResult.Failure(ManagedError.INVALID_STATE)
-            status == 429 || status >= 500 ->
+            status == 429 || code == "RATE_LIMITED" ->
+                OperationResult.Failure(ManagedError.RATE_LIMITED)
+            status >= 500 ->
                 OperationResult.Failure(ManagedError.NETWORK_FAILURE)
+            status == 408 ->
+                OperationResult.Failure(ManagedError.NETWORK_FAILURE)
+            status == 400 ->
+                OperationResult.Failure(ManagedError.INVALID_STATE)
             else -> OperationResult.Failure(ManagedError.UNKNOWN)
         }
     }
