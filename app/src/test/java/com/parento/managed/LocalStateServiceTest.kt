@@ -25,8 +25,10 @@ class LocalStateServiceTest {
         val second = service.initialize()
         assertTrue(first is OperationResult.Success)
         assertTrue(second is OperationResult.Success)
-        assertEquals((first as OperationResult.Success).value.installationId, second.value.installationId)
-        assertEquals(ConnectionState.UNKNOWN, second.value.connectionState)
+        val firstState = (first as OperationResult.Success).value
+        val secondState = (second as OperationResult.Success).value
+        assertEquals(firstState.installationId, secondState.installationId)
+        assertEquals(ConnectionState.UNKNOWN, secondState.connectionState)
     }
 
     @Test
@@ -140,6 +142,13 @@ class LocalStateServiceTest {
         override suspend fun getEnrollmentState() = OperationResult.Success(state?.enrollmentState ?: EnrollmentState.UNENROLLED)
         override suspend fun getConnectionState() = OperationResult.Success(state?.connectionState ?: ConnectionState.UNKNOWN)
         override suspend fun getManagedDeviceId() = OperationResult.Success(state?.managedDeviceId)
+        override suspend fun completeEnrollment(managedDeviceId: String): OperationResult<Unit> {
+            state = (state ?: LocalApplicationState()).copy(
+                managedDeviceId = managedDeviceId,
+                enrollmentState = EnrollmentState.ENROLLED,
+            )
+            return OperationResult.Success(Unit)
+        }
         override suspend fun initializeLocalState(): OperationResult<LocalApplicationState> {
             val current = state ?: LocalApplicationState()
             val updated = current.copy(initialized = true, installationId = current.installationId ?: "test-installation", identityCreatedAtEpochMillis = current.identityCreatedAtEpochMillis ?: 1L)
