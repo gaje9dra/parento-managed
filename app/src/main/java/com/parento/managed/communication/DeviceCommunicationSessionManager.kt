@@ -5,6 +5,7 @@ import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
+import com.parento.managed.domain.canTransitionTo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,14 +66,7 @@ class DeviceCommunicationSessionManager(
                     transition(ConnectionState.DISCONNECTED)
                     OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
                 } else {
-                    val saved = sessionStore.save(
-                        DeviceSession(
-                            result.value.sessionId,
-                            result.value.managedDeviceId,
-                            result.value.sessionToken,
-                            result.value.expiresAtEpochMillis,
-                        ),
-                    )
+                    val saved = sessionStore.save(DeviceSession(result.value.sessionId, result.value.managedDeviceId, result.value.sessionToken, result.value.expiresAtEpochMillis))
                     if (saved is OperationResult.Failure) {
                         transition(ConnectionState.FAILED)
                         transition(ConnectionState.DISCONNECTED)
@@ -121,11 +115,7 @@ class DeviceCommunicationSessionManager(
             }
             is OperationResult.Success -> result.value
         }
-        val result = if (session == null) {
-            OperationResult.Success(Unit)
-        } else {
-            transport.disconnect(session.sessionToken)
-        }
+        val result = if (session == null) OperationResult.Success(Unit) else transport.disconnect(session.sessionToken)
         sessionStore.clear()
         transition(ConnectionState.DISCONNECTED)
         when (result) {
@@ -134,7 +124,7 @@ class DeviceCommunicationSessionManager(
         }
     }
 
-    private fun fail(error: ManagedError): OperationResult<ConnectionState> {
+    private suspend fun fail(error: ManagedError): OperationResult<ConnectionState> {
         transition(ConnectionState.FAILED)
         transition(ConnectionState.DISCONNECTED)
         return OperationResult.Failure(error)
