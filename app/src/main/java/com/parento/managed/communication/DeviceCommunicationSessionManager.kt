@@ -76,7 +76,14 @@ class DeviceCommunicationSessionManager(
             is OperationResult.Success -> result.value
         }
         if (stored != null && stored.expiresAtEpochMillis > System.currentTimeMillis()) {
-            transition(ConnectionState.CONNECTED)
+            if (_state.value != ConnectionState.CONNECTED) {
+                if (_state.value != ConnectionState.DISCONNECTED) {
+                    transition(ConnectionState.DISCONNECTED)
+                }
+                transition(ConnectionState.CONNECTING)
+                transition(ConnectionState.AUTHENTICATING)
+                transition(ConnectionState.CONNECTED)
+            }
             return@withLock OperationResult.Success(ConnectionState.CONNECTED)
         }
         if (stored != null) sessionStore.clear()
