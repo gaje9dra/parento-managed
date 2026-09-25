@@ -2,7 +2,6 @@ package com.parento.managed.monitoring
 
 import com.parento.managed.device.ManagementMode
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,6 +36,6 @@ class MonitoringTelemetrySerializerTest {
         assertEquals(123456L, payload.getLong("deviceCollectedAtEpochMillis"))
         assertTrue(payload.isNull("batteryPercentage"))
         assertTrue(payload.isNull("memoryTotalBytes"))
-        assertFalse(payload.getBoolean("memoryLow"))
+        assertTrue(payload.isNull("memoryLow"))
     }
 }
