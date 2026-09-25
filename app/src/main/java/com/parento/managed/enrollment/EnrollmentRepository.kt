@@ -45,7 +45,9 @@ class EnrollmentRepository(
         when (val current = localStateRepository.getEnrollmentState()) {
             is OperationResult.Failure -> return@withLock current
             is OperationResult.Success ->
-                if (current.value == EnrollmentState.ENROLLED) {
+                if (current.value != EnrollmentState.UNENROLLED &&
+                    current.value != EnrollmentState.ERROR
+                ) {
                     return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
                 }
         }
@@ -60,8 +62,7 @@ class EnrollmentRepository(
                 val state = localStateRepository.getEnrollmentState()
                 if (state is OperationResult.Failure) return@withLock state
                 if (state is OperationResult.Success &&
-                    (state.value == EnrollmentState.UNENROLLED ||
-                        state.value == EnrollmentState.ERROR)
+                    state.value == EnrollmentState.UNENROLLED
                 ) {
                     localStateRepository.updateEnrollmentState(EnrollmentState.ENROLLING)
                 }
@@ -75,6 +76,20 @@ class EnrollmentRepository(
         if (normalizedName.isBlank() || normalizedName.length > 100) {
             return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
         }
+        when (val state = localStateRepository.getEnrollmentState()) {
+            is OperationResult.Failure -> return@withLock state
+            is OperationResult.Success -> when (state.value) {
+                EnrollmentState.ERROR -> {
+                    when (val transition = localStateRepository.updateEnrollmentState(EnrollmentState.ENROLLING)) {
+                        is OperationResult.Failure -> return@withLock transition
+                        is OperationResult.Success -> Unit
+                    }
+                }
+                EnrollmentState.ENROLLING -> Unit
+                else -> return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
+            }
+        }
+
         val pending = when (val stored = secureStore.read()) {
             is OperationResult.Failure -> return@withLock stored
             is OperationResult.Success -> stored.value
@@ -119,7 +134,9 @@ class EnrollmentRepository(
         when (val state = localStateRepository.getEnrollmentState()) {
             is OperationResult.Failure -> state
             is OperationResult.Success ->
-                if (state.value == EnrollmentState.ENROLLING) {
+                if (state.value == EnrollmentState.ENROLLING ||
+                    state.value == EnrollmentState.ERROR
+                ) {
                     localStateRepository.updateEnrollmentState(EnrollmentState.UNENROLLED)
                 } else {
                     OperationResult.Success(Unit)
