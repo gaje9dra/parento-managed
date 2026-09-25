@@ -7,6 +7,7 @@ import android.widget.LinearLayout
 import androidx.core.view.setPadding
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textview.MaterialTextView
+import com.parento.managed.location.LocationCapabilityState
 import com.parento.managed.BuildConfig
 import com.parento.managed.R
 import com.parento.managed.monitoring.MonitoringSnapshot
@@ -14,6 +15,7 @@ import com.parento.managed.monitoring.MonitoringSnapshot
 class ManagedStatusScreen(
     private val context: Context,
     private val onRetry: () -> Unit,
+    private val onRequestLocationPermission: () -> Unit,
 ) {
     private val root = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -78,6 +80,11 @@ class ManagedStatusScreen(
         addMessage(state.deviceStatus.name)
         addMessage(context.getString(R.string.connection_state_title))
         addMessage(state.connectionLabel)
+        addMessage(context.getString(R.string.location_status_title))
+        addMessage(locationLabel(state.locationCapability))
+        if (state.locationCapability == LocationCapabilityState.PERMISSION_REQUIRED || state.locationCapability == LocationCapabilityState.BACKGROUND_REQUIRED) {
+            addAction(context.getString(R.string.enable_location), onRequestLocationPermission)
+        }
         addMessage(context.getString(R.string.no_device_features_message))
         state.monitoringSnapshot?.let { renderMonitoring(it) }
     }
@@ -91,6 +98,17 @@ class ManagedStatusScreen(
         }
     }
 
+
+    private fun locationLabel(state: LocationCapabilityState): String = when (state) {
+        LocationCapabilityState.AVAILABLE -> context.getString(R.string.location_available)
+        LocationCapabilityState.PERMISSION_REQUIRED -> context.getString(R.string.location_permission_required)
+        LocationCapabilityState.PERMISSION_DENIED -> context.getString(R.string.location_permission_denied)
+        LocationCapabilityState.LOCATION_SERVICES_DISABLED -> context.getString(R.string.location_services_disabled)
+        LocationCapabilityState.PROVIDER_UNAVAILABLE -> context.getString(R.string.location_provider_unavailable)
+        LocationCapabilityState.TEMPORARILY_UNAVAILABLE -> context.getString(R.string.location_temporarily_unavailable)
+        LocationCapabilityState.ERROR -> context.getString(R.string.location_error)
+    }
+
     private fun addMessage(message: String) {
         content.addView(
             MaterialTextView(context).apply {
@@ -101,11 +119,11 @@ class ManagedStatusScreen(
         )
     }
 
-    private fun addAction(text: String) {
+    private fun addAction(text: String, action: () -> Unit = onRetry) {
         content.addView(
             com.google.android.material.button.MaterialButton(context).apply {
                 this.text = text
-                setOnClickListener { onRetry() }
+                setOnClickListener { action() }
                 minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
             },
             LinearLayout.LayoutParams(-1, -2),
