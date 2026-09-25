@@ -83,17 +83,17 @@ class ManagedStatusScreen(
     }
 
     private fun renderMonitoring(snapshot: MonitoringSnapshot) {
-        addMessage("Android: \${snapshot.deviceInfo.androidVersion} (API \${snapshot.deviceInfo.apiLevel})")
-        addMessage("App: \${snapshot.deviceInfo.appVersion} (\${snapshot.deviceInfo.appVersionCode})")
-        addMessage("Battery: \${snapshot.battery.percentage?.let { "\$it%" } ?: "Unavailable"} · \${snapshot.battery.chargingState}")
-        addMessage("Network: \${snapshot.network.state}")
-        addMessage("Storage: \${formatBytes(snapshot.storage.availableBytes)} available / \${formatBytes(snapshot.storage.totalBytes)} total")
-        addMessage("Memory: \${formatBytes(snapshot.memory.availableBytes)} available / \${formatBytes(snapshot.memory.totalBytes)} total")
-        addMessage("Last monitoring update: \${snapshot.lastMonitoringUpdateEpochMillis}")
+        addMessage("Android: ${snapshot.deviceInfo.androidVersion} (API ${snapshot.deviceInfo.apiLevel})")
+        addMessage("App: ${snapshot.deviceInfo.appVersion} (${snapshot.deviceInfo.appVersionCode})")
+        addMessage("Battery: ${snapshot.battery.percentage?.let { "$it%" } ?: "Unavailable"} · ${snapshot.battery.chargingState}")
+        addMessage("Network: ${snapshot.network.state}")
+        addMessage("Storage: ${formatBytes(snapshot.storage.availableBytes)} available / ${formatBytes(snapshot.storage.totalBytes)} total")
+        addMessage("Memory: ${formatBytes(snapshot.memory.availableBytes)} available / ${formatBytes(snapshot.memory.totalBytes)} total")
+        addMessage("Last monitoring update: ${snapshot.lastMonitoringUpdateEpochMillis}")
     }
 
-    private fun formatBytes(value: Long?): String = value?.let { "\${it / (1024L * 1024L)} MB" } ?: "Unavailable"
-
+    private fun formatBytes(value: Long?): String =
+        value?.let { "${it / (1024L * 1024L)} MB" } ?: "Unavailable"
     private fun renderError(state: ManagedUiState.Error) {
         subtitle.text = context.getString(R.string.error_state)
         addMessage(state.message)
