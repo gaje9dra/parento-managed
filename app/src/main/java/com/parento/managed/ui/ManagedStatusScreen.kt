@@ -5,15 +5,18 @@ import android.graphics.Typeface
 import android.view.View
 import android.widget.LinearLayout
 import androidx.core.view.setPadding
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textview.MaterialTextView
 import com.parento.managed.BuildConfig
 import com.parento.managed.R
+import com.parento.managed.location.LocationCapabilityState
 import com.parento.managed.monitoring.MonitoringSnapshot
 
 class ManagedStatusScreen(
     private val context: Context,
     private val onRetry: () -> Unit,
+    private val onRequestLocationPermission: () -> Unit,
 ) {
     private val root = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -26,13 +29,8 @@ class ManagedStatusScreen(
         setTypeface(typeface, Typeface.BOLD)
     }
 
-    private val subtitle = MaterialTextView(context).apply {
-        textSize = 16f
-    }
-
-    private val content = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-    }
+    private val subtitle = MaterialTextView(context).apply { textSize = 16f }
+    private val content = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
 
     init {
         root.addView(title, LinearLayout.LayoutParams(-1, -2))
@@ -44,7 +42,6 @@ class ManagedStatusScreen(
 
     fun render(state: ManagedUiState) {
         content.removeAllViews()
-
         when (state) {
             ManagedUiState.Loading -> renderLoading()
             ManagedUiState.Unenrolled -> renderUnenrolled()
@@ -55,13 +52,10 @@ class ManagedStatusScreen(
 
     private fun renderLoading() {
         subtitle.text = context.getString(R.string.loading_state)
-        content.addView(
-            LinearProgressIndicator(context).apply {
-                isIndeterminate = true
-                contentDescription = context.getString(R.string.loading_description)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
+        content.addView(LinearProgressIndicator(context).apply {
+            isIndeterminate = true
+            contentDescription = context.getString(R.string.loading_description)
+        }, LinearLayout.LayoutParams(-1, -2))
     }
 
     private fun renderUnenrolled() {
@@ -78,454 +72,54 @@ class ManagedStatusScreen(
         addMessage(state.deviceStatus.name)
         addMessage(context.getString(R.string.connection_state_title))
         addMessage(state.connectionLabel)
+        addMessage(context.getString(R.string.location_status_title))
+        addMessage(locationLabel(state.locationCapability))
+        if (state.locationCapability == LocationCapabilityState.PERMISSION_REQUIRED ||
+            state.locationCapability == LocationCapabilityState.BACKGROUND_PERMISSION_REQUIRED) {
+            addAction(context.getString(R.string.enable_location), onRequestLocationPermission)
+        }
         addMessage(context.getString(R.string.no_device_features_message))
         state.monitoringSnapshot?.let { renderMonitoring(it) }
     }
 
     private fun renderMonitoring(snapshot: MonitoringSnapshot) {
-        addMessage("Android: ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
+        addMessage("Android: ${snapshot.deviceInfo.androidVersion} (API ${snapshot.deviceInfo.apiLevel})")
+        addMessage("App: ${snapshot.deviceInfo.appVersion} (${snapshot.deviceInfo.appVersionCode})")
+        addMessage("Battery: ${snapshot.battery.percentage?.let { "$it%" } ?: "Unavailable"} · ${snapshot.battery.chargingState}")
+        addMessage("Network: ${snapshot.network.state}")
+        addMessage("Storage: ${formatBytes(snapshot.storage.availableBytes)} available / ${formatBytes(snapshot.storage.totalBytes)} total")
+        addMessage("Memory: ${formatBytes(snapshot.memory.availableBytes)} available / ${formatBytes(snapshot.memory.totalBytes)} total")
+        addMessage("Last monitoring update: ${snapshot.lastMonitoringUpdateEpochMillis}")
     }
 
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{snapshot.deviceInfo.androidVersion} (API ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{snapshot.deviceInfo.apiLevel})")
-        addMessage("App: ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{snapshot.deviceInfo.appVersion} (${ '
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
- }{snapshot.deviceInfo.appVersionCode})")
-        addMessage("Battery: ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{snapshot.battery.percentage?.let { "${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}it%" } ?: "Unavailable"} · ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{snapshot.battery.chargingState}")
-        addMessage("Network: ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{snapshot.network.state}")
-        addMessage("Storage: ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{formatBytes(snapshot.storage.availableBytes)} available / ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{formatBytes(snapshot.storage.totalBytes)} total")
-        addMessage("Memory: ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{formatBytes(snapshot.memory.availableBytes)} available / ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{formatBytes(snapshot.memory.totalBytes)} total")
-        addMessage("Last monitoring update: ${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{snapshot.lastMonitoringUpdateEpochMillis}")
-    }
-
-    private fun formatBytes(value: Long?): String = value?.let { "${'
-        subtitle.text = context.getString(R.string.error_state)
-        addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
-    }
-
-    private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
-    }
-}
-}{it / (1024L * 1024L)} MB" } ?: "Unavailable"
-
+    private fun formatBytes(value: Long?): String =
+        value?.let { "${it / (1024L * 1024L)} MB" } ?: "Unavailable"
     private fun renderError(state: ManagedUiState.Error) {
         subtitle.text = context.getString(R.string.error_state)
         addMessage(state.message)
-        if (state.canRetry) {
-            addAction(context.getString(R.string.retry))
-        }
+        if (state.canRetry) addAction(context.getString(R.string.retry))
+    }
+
+    private fun locationLabel(state: LocationCapabilityState): String = when (state) {
+        LocationCapabilityState.AVAILABLE -> context.getString(R.string.location_available)
+        LocationCapabilityState.PERMISSION_REQUIRED -> context.getString(R.string.location_permission_required)
+        LocationCapabilityState.PERMISSION_DENIED -> context.getString(R.string.location_permission_denied)
+        LocationCapabilityState.BACKGROUND_PERMISSION_REQUIRED -> context.getString(R.string.location_background_permission_required)
+        LocationCapabilityState.LOCATION_SERVICES_DISABLED -> context.getString(R.string.location_services_disabled)
+        LocationCapabilityState.PROVIDER_UNAVAILABLE -> context.getString(R.string.location_provider_unavailable)
+        LocationCapabilityState.TEMPORARILY_UNAVAILABLE -> context.getString(R.string.location_temporarily_unavailable)
+        LocationCapabilityState.ERROR -> context.getString(R.string.location_error)
     }
 
     private fun addMessage(message: String) {
-        content.addView(
-            MaterialTextView(context).apply {
-                text = message
-                textSize = 17f
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
+        content.addView(MaterialTextView(context).apply { text = message; textSize = 17f }, LinearLayout.LayoutParams(-1, -2))
     }
 
-    private fun addAction(text: String) {
-        content.addView(
-            com.google.android.material.button.MaterialButton(context).apply {
-                this.text = text
-                setOnClickListener { onRetry() }
-                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
-            },
-            LinearLayout.LayoutParams(-1, -2),
-        )
+    private fun addAction(text: String, action: () -> Unit = onRetry) {
+        content.addView(MaterialButton(context).apply {
+            this.text = text
+            setOnClickListener { action() }
+            minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+        }, LinearLayout.LayoutParams(-1, -2))
     }
 }

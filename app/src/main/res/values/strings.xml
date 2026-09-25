@@ -26,4 +26,14 @@
     <string name="enrollment_not_started">No enrollment authorization is active.</string>
     <string name="enrollment_authorization_saved">Authorization saved securely on this device.</string>
     <string name="enrollment_input_invalid">Enter a valid enrollment ID, 43-character authorization secret, and ISO 8601 expiry.</string>
+    <string name="location_status_title">Location</string>
+    <string name="enable_location">Enable location access</string>
+    <string name="location_available">Available</string>
+    <string name="location_permission_required">Location permission required</string>
+    <string name="location_permission_denied">Location permission denied</string>
+    <string name="location_background_permission_required">Background location access is required for scheduled reporting</string>
+    <string name="location_services_disabled">Location services are disabled</string>
+    <string name="location_provider_unavailable">Location provider unavailable</string>
+    <string name="location_temporarily_unavailable">Location temporarily unavailable</string>
+    <string name="location_error">Location capability error</string>
 </resources>

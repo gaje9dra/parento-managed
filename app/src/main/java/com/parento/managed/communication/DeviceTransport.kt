@@ -42,6 +42,15 @@ interface DeviceTransport {
         errorCategory: String?,
         resultMetadata: String?,
     ): OperationResult<Unit>
+    suspend fun reportLocation(
+        sessionToken: String,
+        reportId: String,
+        availability: String,
+        latitude: Double?,
+        longitude: Double?,
+        accuracyMeters: Double?,
+        observedAt: String,
+    ): OperationResult<Unit>
     suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?>
 }
 
@@ -98,6 +107,26 @@ class HttpsDeviceTransport(
                 .put("errorCategory", errorCategory)
                 .put("resultMetadata", resultMetadata?.let { JSONObject(it) }),
         ) { Unit }
+
+    override suspend fun reportLocation(
+        sessionToken: String,
+        reportId: String,
+        availability: String,
+        latitude: Double?,
+        longitude: Double?,
+        accuracyMeters: Double?,
+        observedAt: String,
+    ): OperationResult<Unit> = request(
+        "/api/v1/device/location", "POST", sessionToken,
+        JSONObject().apply {
+            put("reportId", reportId)
+            put("availability", availability)
+            if (latitude != null) put("latitude", latitude)
+            if (longitude != null) put("longitude", longitude)
+            if (accuracyMeters != null) put("accuracyMeters", accuracyMeters)
+            put("observedAt", observedAt)
+        },
+    ) { Unit }
 
     override suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?> =
         OperationResult.Success(null)

@@ -33,4 +33,22 @@ class MonitoringDatabaseMigrationTest {
         }
         database.close()
     }
+
+    @Test fun migrate7To8_addsBoundedLocationStateTable() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name("parento-location-migration")
+                .callback(object : SupportSQLiteOpenHelper.Callback(7) {
+                    override fun onCreate(database: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+                    override fun onUpgrade(database: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                }).build(),
+        )
+        val database = helper.writableDatabase
+        ParentoDatabase.MIGRATION_7_8.migrate(database)
+        database.query("SELECT name FROM sqlite_master WHERE type='table' AND name='location_state'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("location_state", cursor.getString(0))
+        }
+        database.close()
+    }
 }

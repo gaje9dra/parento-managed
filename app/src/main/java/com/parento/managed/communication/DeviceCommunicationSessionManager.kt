@@ -106,6 +106,43 @@ class DeviceCommunicationSessionManager(
         }
     }
 
+    suspend fun reportLocation(
+        reportId: String,
+        availability: String,
+        latitude: Double?,
+        longitude: Double?,
+        accuracyMeters: Double?,
+        observedAt: String,
+    ): OperationResult<Unit> = mutex.withLock {
+        val session = when (val result = sessionStore.read()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        } ?: return@withLock OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+
+        if (session.expiresAtEpochMillis <= System.currentTimeMillis()) {
+            sessionStore.clear()
+            transition(ConnectionState.DISCONNECTED)
+            return@withLock OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+        }
+
+        val result = transport.reportLocation(
+            sessionToken = session.sessionToken,
+            reportId = reportId,
+            availability = availability,
+            latitude = latitude,
+            longitude = longitude,
+            accuracyMeters = accuracyMeters,
+            observedAt = observedAt,
+        )
+        if (result is OperationResult.Failure &&
+            (result.error == ManagedError.AUTHENTICATION_FAILURE || result.error == ManagedError.AUTHORIZATION_FAILURE)
+        ) {
+            sessionStore.clear()
+            transition(ConnectionState.DISCONNECTED)
+        }
+        result
+    }
+
     suspend fun disconnect(): OperationResult<ConnectionState> = mutex.withLock {
         transition(ConnectionState.DISCONNECTING)
         val session = when (val result = sessionStore.read()) {
