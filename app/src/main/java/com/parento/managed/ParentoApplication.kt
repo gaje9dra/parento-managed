@@ -96,16 +96,16 @@ class ParentoApplication : Application() {
         )
     }
 
+    private val locationRepository: com.parento.managed.location.LocationRepository by lazy {
+        com.parento.managed.location.RoomLocationRepository(LocalDatabaseProvider.get().locationStateDao())
+    }
+
     val locationCoordinator: com.parento.managed.location.LocationCoordinator by lazy {
         com.parento.managed.location.LocationCoordinator(
             provider = com.parento.managed.location.AndroidLocationProvider(this),
-            repository = com.parento.managed.location.RoomLocationRepository(
-                LocalDatabaseProvider.get().locationStateDao(),
-            ),
+            repository = locationRepository,
             reporter = com.parento.managed.location.LocationReporter(
-                repository = com.parento.managed.location.RoomLocationRepository(
-                    LocalDatabaseProvider.get().locationStateDao(),
-                ),
+                repository = locationRepository,
                 sessionManager = deviceCommunicationSessionManager,
             ),
         )
