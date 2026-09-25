@@ -1,5 +1,6 @@
 package com.parento.managed
 
+import com.parento.managed.communication.DeviceCredentialStore
 import com.parento.managed.data.LocalApplicationState
 import com.parento.managed.data.LocalDeviceIdentity
 import com.parento.managed.data.LocalStateRepository
@@ -31,7 +32,7 @@ class EnrollmentRepositoryTest {
     fun beginPersistsPendingAuthorizationAndMovesToEnrolling() = runBlocking {
         val state = FakeStateRepository()
         val store = FakeStore()
-        val repository = EnrollmentRepository(FakeApi(), state, store)
+        val repository = EnrollmentRepository(FakeApi(), state, store, FakeCredentialStore())
 
         val result = repository.begin("00000000-0000-0000-0000-000000000001", "a".repeat(43), System.currentTimeMillis() + 60_000)
 
@@ -47,7 +48,7 @@ class EnrollmentRepositoryTest {
             PendingEnrollment("00000000-0000-0000-0000-000000000001", "a".repeat(43), System.currentTimeMillis() + 60_000),
         )
         state.enrollmentState = EnrollmentState.ENROLLING
-        val repository = EnrollmentRepository(FakeApi(), state, store)
+        val repository = EnrollmentRepository(FakeApi(), state, store, FakeCredentialStore())
 
         val result = repository.enroll("Child Device")
 
@@ -65,7 +66,7 @@ class EnrollmentRepositoryTest {
         )
         state.enrollmentState = EnrollmentState.ENROLLING
         val api = CountingApi()
-        val repository = EnrollmentRepository(api, state, store)
+        val repository = EnrollmentRepository(api, state, store, FakeCredentialStore())
 
         val results = listOf(
             async { repository.enroll("Child Device") },
@@ -83,7 +84,7 @@ class EnrollmentRepositoryTest {
             localInstallationIdentity: String,
             name: String,
         ): OperationResult<EnrollmentResult> =
-            OperationResult.Success(EnrollmentResult("managed-1", authorization.enrollmentId, System.currentTimeMillis() + 60_000))
+            OperationResult.Success(EnrollmentResult("managed-1", authorization.enrollmentId, System.currentTimeMillis() + 60_000, "b".repeat(43)))
     }
 
     private class CountingApi : EnrollmentApiClient {
@@ -95,7 +96,7 @@ class EnrollmentRepositoryTest {
         ): OperationResult<EnrollmentResult> {
             calls++
             return if (calls == 1) {
-                OperationResult.Success(EnrollmentResult("managed-1", authorization.enrollmentId, System.currentTimeMillis() + 60_000))
+                OperationResult.Success(EnrollmentResult("managed-1", authorization.enrollmentId, System.currentTimeMillis() + 60_000, "b".repeat(43)))
             } else {
                 OperationResult.Failure(ManagedError.INVALID_STATE)
             }
@@ -147,4 +148,11 @@ class EnrollmentRepositoryTest {
             return OperationResult.Success(Unit)
         }
     }
+}
+
+
+private class FakeCredentialStore : DeviceCredentialStore {
+    override fun read() = OperationResult.Success<String?>(null)
+    override fun save(credential: String): OperationResult<Unit> = OperationResult.Success(Unit)
+    override fun clear(): OperationResult<Unit> = OperationResult.Success(Unit)
 }

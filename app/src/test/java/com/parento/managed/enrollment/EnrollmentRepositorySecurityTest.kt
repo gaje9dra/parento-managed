@@ -1,5 +1,6 @@
 package com.parento.managed.enrollment
 
+import com.parento.managed.communication.DeviceCredentialStore
 import com.parento.managed.data.LocalApplicationState
 import com.parento.managed.data.LocalDeviceIdentity
 import com.parento.managed.data.LocalStateRepository
@@ -26,7 +27,7 @@ class EnrollmentRepositorySecurityTest {
         val local = FakeLocalStateRepository()
         val store = FakeEnrollmentStore()
         val api = FakeEnrollmentApi(OperationResult.Failure(ManagedError.NETWORK_FAILURE))
-        val repository = EnrollmentRepository(api, local, store)
+        val repository = EnrollmentRepository(api, local, store, FakeCredentialStore())
 
         assertTrue(repository.begin(enrollmentId, secret, System.currentTimeMillis() + 60_000) is OperationResult.Success)
         val result = repository.enroll("Child phone")
@@ -40,7 +41,7 @@ class EnrollmentRepositorySecurityTest {
     fun restoredPendingAuthorizationNeverReplaysAfterErrorState() = runBlocking {
         val local = FakeLocalStateRepository(state = EnrollmentState.ERROR)
         val store = FakeEnrollmentStore(PendingEnrollment(enrollmentId, secret, System.currentTimeMillis() + 60_000))
-        val repository = EnrollmentRepository(FakeEnrollmentApi(), local, store)
+        val repository = EnrollmentRepository(FakeEnrollmentApi(), local, store, FakeCredentialStore())
 
         val result = repository.restorePending()
 
@@ -53,8 +54,8 @@ class EnrollmentRepositorySecurityTest {
     fun mismatchedSuccessfulResponseFailsClosedAndClearsAuthorization() = runBlocking {
         val local = FakeLocalStateRepository()
         val store = FakeEnrollmentStore()
-        val api = FakeEnrollmentApi(OperationResult.Success(EnrollmentResult(UUID.randomUUID().toString(), UUID.randomUUID().toString(), System.currentTimeMillis() + 60_000)))
-        val repository = EnrollmentRepository(api, local, store)
+        val api = FakeEnrollmentApi(OperationResult.Success(EnrollmentResult(UUID.randomUUID().toString(), UUID.randomUUID().toString(), System.currentTimeMillis() + 60_000, "B".repeat(43))))
+        val repository = EnrollmentRepository(api, local, store, FakeCredentialStore())
 
         repository.begin(enrollmentId, secret, System.currentTimeMillis() + 60_000)
         val result = repository.enroll("Child phone")
@@ -97,4 +98,11 @@ private class FakeLocalStateRepository(var state: EnrollmentState = EnrollmentSt
         state = EnrollmentState.ENROLLED
         return OperationResult.Success(Unit)
     }
+}
+
+
+private class FakeCredentialStore : DeviceCredentialStore {
+    override fun read() = OperationResult.Success<String?>(null)
+    override fun save(credential: String): OperationResult<Unit> = OperationResult.Success(Unit)
+    override fun clear(): OperationResult<Unit> = OperationResult.Success(Unit)
 }

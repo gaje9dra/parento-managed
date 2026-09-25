@@ -14,13 +14,8 @@ class ManagedStatusViewModel(
     var uiState: ManagedUiState = restoreState()
         private set
 
-    fun showLoading() {
-        updateState(ManagedUiState.Loading)
-    }
-
-    fun showUnenrolled() {
-        updateState(ManagedUiState.Unenrolled)
-    }
+    fun showLoading() = updateState(ManagedUiState.Loading)
+    fun showUnenrolled() = updateState(ManagedUiState.Unenrolled)
 
     fun showManagementState(
         managementState: ManagementState,
@@ -40,24 +35,10 @@ class ManagedStatusViewModel(
             ManagementMode.DEVICE_OWNER -> "Device Owner"
             ManagementMode.UNKNOWN -> "Management mode unavailable"
         }
-        updateState(
-            ManagedUiState.Content(
-                deviceStatus = status,
-                managementLabel = managementLabel,
-                connectionLabel = when (connectionState) {
-                    ConnectionState.UNKNOWN -> "Connection unknown"
-                    ConnectionState.DISCONNECTED -> "Disconnected"
-                    ConnectionState.CONNECTING -> "Connection pending"
-                    ConnectionState.CONNECTED -> "Connected"
-                },
-            ),
-        )
+        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState)))
     }
 
-    fun showDeviceState(
-        status: DeviceStatus,
-        connectionState: ConnectionState,
-    ) {
+    fun showDeviceState(status: DeviceStatus, connectionState: ConnectionState) {
         val managementLabel = when (status) {
             DeviceStatus.UNENROLLED -> "Not enrolled"
             DeviceStatus.ENROLLING -> "Enrollment in progress"
@@ -65,30 +46,24 @@ class ManagedStatusViewModel(
             DeviceStatus.REVOKED -> "Management revoked"
             DeviceStatus.ERROR -> "Management state error"
         }
-
-        val connectionLabel = when (connectionState) {
-            ConnectionState.UNKNOWN -> "Connection unknown"
-            ConnectionState.DISCONNECTED -> "Disconnected"
-            ConnectionState.CONNECTING -> "Connection pending"
-            ConnectionState.CONNECTED -> "Connected"
-        }
-
-        updateState(
-            ManagedUiState.Content(
-                deviceStatus = status,
-                managementLabel = managementLabel,
-                connectionLabel = connectionLabel,
-            ),
-        )
+        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState)))
     }
 
-    fun showError(
-        error: ManagedError,
-        message: String,
-        canRetry: Boolean = false,
-    ) {
+    fun showError(error: ManagedError, message: String, canRetry: Boolean = false) {
         updateState(ManagedUiState.Error(error, message, canRetry))
     }
+
+    private fun connectionLabel(state: ConnectionState): String =
+        when (state) {
+            ConnectionState.UNKNOWN -> "Connection unknown"
+            ConnectionState.DISCONNECTED -> "Disconnected"
+            ConnectionState.CONNECTING -> "Connecting"
+            ConnectionState.AUTHENTICATING -> "Authenticating"
+            ConnectionState.CONNECTED -> "Connected"
+            ConnectionState.RECONNECTING -> "Reconnecting"
+            ConnectionState.DISCONNECTING -> "Disconnecting"
+            ConnectionState.FAILED -> "Connection failed"
+        }
 
     private fun updateState(state: ManagedUiState) {
         uiState = state
@@ -114,37 +89,24 @@ class ManagedStatusViewModel(
         }
     }
 
-    private fun restoreState(): ManagedUiState {
-        return when (savedStateHandle.get<String>(STATE_KEY)) {
+    private fun restoreState(): ManagedUiState =
+        when (savedStateHandle.get<String>(STATE_KEY)) {
             STATE_LOADING -> ManagedUiState.Loading
             STATE_CONTENT -> {
-                val status = savedStateHandle.get<String>(DEVICE_STATUS_KEY)
-                    ?.let { runCatching { DeviceStatus.valueOf(it) }.getOrNull() }
+                val status = savedStateHandle.get<String>(DEVICE_STATUS_KEY)?.let { runCatching { DeviceStatus.valueOf(it) }.getOrNull() }
                 val managementLabel = savedStateHandle.get<String>(MANAGEMENT_LABEL_KEY)
                 val connectionLabel = savedStateHandle.get<String>(CONNECTION_LABEL_KEY)
-                if (status != null && managementLabel != null && connectionLabel != null) {
-                    ManagedUiState.Content(status, managementLabel, connectionLabel)
-                } else {
-                    ManagedUiState.Unenrolled
-                }
+                if (status != null && managementLabel != null && connectionLabel != null) ManagedUiState.Content(status, managementLabel, connectionLabel)
+                else ManagedUiState.Unenrolled
             }
             STATE_ERROR -> {
-                val error = savedStateHandle.get<String>(ERROR_KEY)
-                    ?.let { runCatching { ManagedError.valueOf(it) }.getOrNull() }
+                val error = savedStateHandle.get<String>(ERROR_KEY)?.let { runCatching { ManagedError.valueOf(it) }.getOrNull() }
                 val message = savedStateHandle.get<String>(ERROR_MESSAGE_KEY)
-                if (error != null && message != null) {
-                    ManagedUiState.Error(
-                        error = error,
-                        message = message,
-                        canRetry = savedStateHandle[ERROR_RETRY_KEY] ?: false,
-                    )
-                } else {
-                    ManagedUiState.Unenrolled
-                }
+                if (error != null && message != null) ManagedUiState.Error(error, message, savedStateHandle[ERROR_RETRY_KEY] ?: false)
+                else ManagedUiState.Unenrolled
             }
             else -> ManagedUiState.Unenrolled
         }
-    }
 
     private companion object {
         const val STATE_KEY = "managed_ui_state"

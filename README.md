@@ -308,3 +308,26 @@ See docs/phase-5.5-enrollment-security.md for the complete Phase 5.5 security an
 ### Phase 5 completion boundary
 
 Phase 5 remains limited to secure enrollment and pairing. WebSockets, Socket.IO, FCM commands, remote lock/wipe, camera, microphone, audio, screen capture, live location, application blocking, website filtering, network filtering, remote policy enforcement, and remote device configuration remain deferred.
+
+
+## Phase 6.2 — Device Communication & Secure Command Execution Foundation
+
+Phase 6.2 adds the managed-device communication/session foundation and the local command-processing security boundary while preserving Phases 1–5.
+
+### Communication
+
+The app keeps enrollment, Android management state, and communication state separate. A persistent device credential and short-lived session token are stored only in Android encrypted preferences. The communication session manager exposes StateFlow connection state and uses an HTTPS transport abstraction for session lifecycle and command lifecycle reporting.
+
+Connection states: UNKNOWN, DISCONNECTED, CONNECTING, AUTHENTICATING, CONNECTED, RECONNECTING, DISCONNECTING, FAILED.
+
+### Command security
+
+Commands are validated for device identity, command ID, type/version, JSON payload, payload size, timestamps, expiration, and metadata lengths. Room schema version 6 adds managed command persistence for duplicate/replay protection and recovery. A strict handler allowlist prevents arbitrary execution.
+
+No shell execution, eval, dynamic code loading, hidden communication, permission bypass, or sensitive device-control functionality is implemented. FUTURE_COMMAND version 1 is treated as an infrastructure placeholder and fails as unsupported without performing a device action.
+
+### Backend dependency
+
+The Phase 6.1 backend currently exposes session lifecycle and command acknowledgement/start/result endpoints but no approved device-side command delivery/realtime endpoint. This phase therefore does not invent polling, WebSockets, SSE, FCM, or an undocumented endpoint. The transport boundary is ready for a later approved delivery adapter.
+
+See docs/phase-6.2-device-communication.md for the detailed Phase 6.2 contract.

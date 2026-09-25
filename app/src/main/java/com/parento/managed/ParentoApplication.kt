@@ -3,6 +3,12 @@ package com.parento.managed
 import android.app.Application
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.parento.managed.background.WorkManagerBackgroundWorkScheduler
+import com.parento.managed.communication.AndroidDeviceCredentialStore
+import com.parento.managed.communication.AndroidDeviceSessionStore
+import com.parento.managed.communication.DeviceCommunicationSessionManager
+import com.parento.managed.communication.DeviceCredentialStore
+import com.parento.managed.communication.DeviceTransport
+import com.parento.managed.communication.HttpsDeviceTransport
 import com.parento.managed.config.ManagedApplicationConfig
 import com.parento.managed.data.LocalStateRepository
 import com.parento.managed.data.LocalStateService
@@ -10,6 +16,11 @@ import com.parento.managed.data.RoomLocalStateRepository
 import com.parento.managed.data.local.LocalDatabaseProvider
 import com.parento.managed.device.AndroidDeviceManagementManager
 import com.parento.managed.device.AndroidDeviceManagementPlatform
+import com.parento.managed.domain.ManagedError
+import com.parento.managed.domain.OperationResult
+import com.parento.managed.enrollment.AndroidSecureEnrollmentStore
+import com.parento.managed.enrollment.EnrollmentRepository
+import com.parento.managed.enrollment.HttpEnrollmentApiClient
 import com.parento.managed.lifecycle.AndroidConnectivityObserver
 import com.parento.managed.lifecycle.ApplicationInitializationState
 import com.parento.managed.lifecycle.ApplicationLifecycleObserver
@@ -19,14 +30,9 @@ import com.parento.managed.lifecycle.LocalManagementStateRepository
 import com.parento.managed.lifecycle.ManagedDeviceInitializer
 import com.parento.managed.lifecycle.ManagedStartupOrchestrator
 import com.parento.managed.lifecycle.ManagementState
-import com.parento.managed.domain.ManagedError
-import com.parento.managed.domain.OperationResult
 import com.parento.managed.logging.AndroidManagedLogger
 import com.parento.managed.logging.LogLevel
 import com.parento.managed.logging.ManagedLogger
-import com.parento.managed.enrollment.AndroidSecureEnrollmentStore
-import com.parento.managed.enrollment.EnrollmentRepository
-import com.parento.managed.enrollment.HttpEnrollmentApiClient
 import com.parento.managed.policy.DefaultPolicyEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,15 +46,39 @@ import kotlinx.coroutines.launch
 class ParentoApplication : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _managementInitialization =
-        MutableStateFlow<OperationResult<ManagementState>?>(null)
-    val managementInitialization: StateFlow<OperationResult<ManagementState>?> =
-        _managementInitialization.asStateFlow()
+    private val _managementInitialization = MutableStateFlow<OperationResult<ManagementState>?>(null)
+    val managementInitialization: StateFlow<OperationResult<ManagementState>?> = _managementInitialization.asStateFlow()
 
-    private val _initializationState =
-        MutableStateFlow(ApplicationInitializationState())
-    val initializationState: StateFlow<ApplicationInitializationState> =
-        _initializationState.asStateFlow()
+    private val _initializationState = MutableStateFlow(ApplicationInitializationState())
+    val initializationState: StateFlow<ApplicationInitializationState> = _initializationState.asStateFlow()
+
+    private lateinit var logger: ManagedLogger
+    private lateinit var connectivityObserver: ConnectivityObserver
+    private lateinit var startupOrchestrator: ManagedStartupOrchestrator
+
+    val localStateRepository: LocalStateRepository by lazy {
+        RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
+    }
+
+    private val deviceCredentialStore: DeviceCredentialStore by lazy {
+        AndroidDeviceCredentialStore(this)
+    }
+
+    val deviceCommunicationSessionManager: DeviceCommunicationSessionManager by lazy {
+        val config = ManagedApplicationConfig.get()
+        DeviceCommunicationSessionManager(
+            localStateRepository = localStateRepository,
+            credentialStore = deviceCredentialStore,
+            sessionStore = AndroidDeviceSessionStore(this),
+            transport = HttpsDeviceTransport(
+                baseUrl = config.backendBaseUrl,
+                requireHttps = config.security.requireHttps,
+            ),
+        )
+    }
+
+    val connectionState: StateFlow<com.parento.managed.domain.ConnectionState>
+        get() = deviceCommunicationSessionManager.state
 
     val enrollmentRepository: EnrollmentRepository by lazy {
         val config = ManagedApplicationConfig.get()
@@ -59,20 +89,13 @@ class ParentoApplication : Application() {
             ),
             localStateRepository = localStateRepository,
             secureStore = AndroidSecureEnrollmentStore(this),
+            deviceCredentialStore = deviceCredentialStore,
         )
-    }
-
-    val localStateRepository: LocalStateRepository by lazy {
-        RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
     }
 
     val localStateService: LocalStateService by lazy {
         LocalStateService(localStateRepository)
     }
-
-    private lateinit var logger: ManagedLogger
-    private lateinit var connectivityObserver: ConnectivityObserver
-    private lateinit var startupOrchestrator: ManagedStartupOrchestrator
 
     override fun onCreate() {
         super.onCreate()
@@ -96,15 +119,11 @@ class ParentoApplication : Application() {
         val initializer = ManagedDeviceInitializer(
             localStateRepository = localStateRepository,
             managementStateRepository = managementStateRepository,
-            deviceManagementManager = AndroidDeviceManagementManager(
-                AndroidDeviceManagementPlatform(this),
-            ),
+            deviceManagementManager = AndroidDeviceManagementManager(AndroidDeviceManagementPlatform(this)),
             policyEngine = DefaultPolicyEngine(),
         )
         startupOrchestrator = ManagedStartupOrchestrator(initializer)
 
-        // WorkManager is initialized by its AndroidX startup provider. Creating this
-        // boundary does not schedule any work; future jobs must opt in explicitly.
         WorkManagerBackgroundWorkScheduler(this)
 
         connectivityObserver = AndroidConnectivityObserver(
@@ -120,7 +139,10 @@ class ParentoApplication : Application() {
             ApplicationLifecycleObserver(
                 onForeground = {
                     if (_initializationState.value.status == InitializationStatus.READY) {
-                        applicationScope.launch { refreshManagementState() }
+                        applicationScope.launch {
+                            refreshManagementState()
+                            deviceCommunicationSessionManager.heartbeat()
+                        }
                     }
                 },
                 logger = logger,
@@ -132,24 +154,18 @@ class ParentoApplication : Application() {
     }
 
     private fun initialize() {
-        _initializationState.value = ApplicationInitializationState(
-            status = InitializationStatus.INITIALIZING,
-        )
+        _initializationState.value = ApplicationInitializationState(status = InitializationStatus.INITIALIZING)
         applicationScope.launch {
             val result = runCatching {
                 when (val local = localStateService.initialize()) {
                     is OperationResult.Failure -> local
                     is OperationResult.Success -> startupOrchestrator.initialize()
                 }
-            }.getOrElse {
-                OperationResult.Failure(ManagedError.UNKNOWN)
-            }
+            }.getOrElse { OperationResult.Failure(ManagedError.UNKNOWN) }
 
             _managementInitialization.value = result
             _initializationState.value = when (result) {
-                is OperationResult.Success -> ApplicationInitializationState(
-                    status = InitializationStatus.READY,
-                )
+                is OperationResult.Success -> ApplicationInitializationState(status = InitializationStatus.READY)
                 is OperationResult.Failure -> ApplicationInitializationState(
                     status = InitializationStatus.FAILED,
                     failedSubsystem = "managed-device-initialization",
@@ -157,10 +173,14 @@ class ParentoApplication : Application() {
                 )
             }
 
-            if (result is OperationResult.Failure) {
-                logger.log(LogLevel.ERROR, "Managed-device initialization failed.")
-            } else {
+            if (result is OperationResult.Success) {
+                deviceCommunicationSessionManager.recover()
+                if (result.value.enrollmentState == com.parento.managed.domain.EnrollmentState.ENROLLED) {
+                    deviceCommunicationSessionManager.connect()
+                }
                 logger.log(LogLevel.INFO, "Managed-device initialization completed.")
+            } else {
+                logger.log(LogLevel.ERROR, "Managed-device initialization failed.")
             }
         }
     }
@@ -171,14 +191,8 @@ class ParentoApplication : Application() {
     }
 
     private suspend fun refreshManagementState() {
-        logger.log(LogLevel.INFO, "Management state refresh started.")
         val result = startupOrchestrator.refresh()
         _managementInitialization.value = result
-        if (result is OperationResult.Failure) {
-            logger.log(LogLevel.WARN, "Management state refresh failed.")
-        } else {
-            logger.log(LogLevel.INFO, "Management state refreshed.")
-        }
     }
 
     private fun publishInitializationFailure(subsystem: String, error: ManagedError) {
@@ -197,6 +211,5 @@ class ParentoApplication : Application() {
         super.onTerminate()
     }
 
-    private fun databaseIsInitialized(): Boolean =
-        runCatching { LocalDatabaseProvider.get() }.isSuccess
+    private fun databaseIsInitialized(): Boolean = runCatching { LocalDatabaseProvider.get() }.isSuccess
 }
