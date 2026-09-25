@@ -13,4 +13,17 @@
     <string name="management_mode_title">Management Mode</string>
     <string name="enrollment_state_title">Enrollment State</string>
     <string name="connection_state_title">Connection State</string>
+    <string name="enrollment_title">Connect this device</string>
+    <string name="enrollment_description">Enter the enrollment authorization supplied by your Parento administrator. The authorization is temporary and single-use.</string>
+    <string name="enrollment_id_label">Enrollment ID</string>
+    <string name="enrollment_secret_label">Authorization secret</string>
+    <string name="enrollment_expiry_label">Authorization expiry (ISO 8601)</string>
+    <string name="device_name_label">Device name</string>
+    <string name="device_name_required">Enter a device name.</string>
+    <string name="start_enrollment">Save authorization</string>
+    <string name="complete_enrollment">Complete enrollment</string>
+    <string name="cancel_enrollment">Cancel</string>
+    <string name="enrollment_not_started">No enrollment authorization is active.</string>
+    <string name="enrollment_authorization_saved">Authorization saved securely on this device.</string>
+    <string name="enrollment_input_invalid">Enter a valid enrollment ID, 43-character authorization secret, and ISO 8601 expiry.</string>
 </resources>
