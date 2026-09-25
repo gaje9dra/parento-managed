@@ -45,7 +45,7 @@ class EnrollmentScreen(
     }
     private val enrollButton = MaterialButton(context).apply {
         text = context.getString(R.string.complete_enrollment)
-        setOnClickListener { onEnroll(deviceName.text.toString().trim()) }
+        setOnClickListener { onEnroll(deviceName.edit.text.toString().trim()) }
     }
     private val cancelButton = MaterialButton(context).apply {
         text = context.getString(R.string.cancel_enrollment)
@@ -100,11 +100,11 @@ class EnrollmentScreen(
     }
 
     private fun submitStart() {
-        val id = enrollmentId.text.toString().trim()
-        val token = secret.text.toString().trim()
+        val id = enrollmentId.edit.text.toString().trim()
+        val token = secret.edit.text.toString().trim()
         val expires = runCatching {
             SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
-                .parse(expiry.text.toString().trim())?.time
+                .parse(expiry.edit.text.toString().trim())?.time
         }.getOrNull()
         if (id.isBlank() || token.length != 43 || expires == null) {
             status.text = context.getString(R.string.enrollment_input_invalid)
@@ -144,11 +144,4 @@ class EnrollmentScreen(
         val edit: TextInputEditText,
     )
 
-    private val enrollmentIdField get() = enrollmentId
-    private val secretField get() = secret
-    private val expiryField get() = expiry
-    private val deviceNameField get() = deviceName
-
-    private val TextInputEditText.text: CharSequence
-        get() = text ?: ""
 }
