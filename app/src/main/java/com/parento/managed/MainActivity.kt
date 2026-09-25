@@ -22,8 +22,6 @@ import com.parento.managed.enrollment.EnrollmentViewModelFactory
 import com.parento.managed.ui.ManagedStatusScreen
 import com.parento.managed.ui.ManagedStatusViewModel
 import com.parento.managed.monitoring.RoomMonitoringRepository
-import com.parento.managed.location.LocationCapabilityState
-import com.parento.managed.permission.AndroidLocationPermissionCapability
 import android.Manifest
 import kotlinx.coroutines.launch
 
@@ -125,11 +123,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun requestLocationAccess() {
-        val permissions = mutableListOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-        )
-        foregroundLocationPermissionLauncher.launch(permissions.toTypedArray())
+        if (app?.locationCoordinator?.capability() == com.parento.managed.location.LocationCapabilityState.PERMISSION_REQUIRED) {
+            foregroundLocationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            )
+        } else if (app?.locationCoordinator?.capability() == com.parento.managed.location.LocationCapabilityState.AVAILABLE) {
+            return
+        } else {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+        }
     }
 
     private fun refreshLocationUi(app: ParentoApplication) {
