@@ -57,6 +57,7 @@ class ParentoApplication : Application() {
     private lateinit var connectivityObserver: ConnectivityObserver
     private lateinit var startupOrchestrator: ManagedStartupOrchestrator
     private lateinit var monitoringScheduler: MonitoringScheduler
+    private lateinit var locationScheduler: com.parento.managed.location.LocationScheduler
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
@@ -95,6 +96,26 @@ class ParentoApplication : Application() {
         )
     }
 
+    val locationCoordinator: com.parento.managed.location.LocationCoordinator by lazy {
+        com.parento.managed.location.LocationCoordinator(
+            provider = com.parento.managed.location.AndroidLocationProvider(this),
+            repository = com.parento.managed.location.RoomLocationRepository(
+                LocalDatabaseProvider.get().locationStateDao(),
+            ),
+            reporter = com.parento.managed.location.LocationReporter(
+                repository = com.parento.managed.location.RoomLocationRepository(
+                    LocalDatabaseProvider.get().locationStateDao(),
+                ),
+                sessionManager = deviceCommunicationSessionManager,
+            ),
+        )
+    }
+
+    suspend fun ensureConnectedForBackgroundWork(): Boolean {
+        if (connectionState.value == com.parento.managed.domain.ConnectionState.CONNECTED) return true
+        return deviceCommunicationSessionManager.connect() is OperationResult.Success
+    }
+
     val localStateService: LocalStateService by lazy {
         LocalStateService(localStateRepository)
     }
@@ -129,6 +150,8 @@ class ParentoApplication : Application() {
         WorkManagerBackgroundWorkScheduler(this)
         monitoringScheduler = MonitoringScheduler(this)
         monitoringScheduler.schedule()
+        locationScheduler = com.parento.managed.location.LocationScheduler(this)
+        locationScheduler.schedule()
 
         connectivityObserver = AndroidConnectivityObserver(
             context = this,
