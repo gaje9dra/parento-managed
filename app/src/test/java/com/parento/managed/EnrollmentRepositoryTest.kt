@@ -96,7 +96,7 @@ class EnrollmentRepositoryTest {
         ): OperationResult<EnrollmentResult> {
             calls++
             return if (calls == 1) {
-                OperationResult.Success(EnrollmentResult("managed-1", authorization.enrollmentId, System.currentTimeMillis() + 60_000))
+                OperationResult.Success(EnrollmentResult("managed-1", authorization.enrollmentId, System.currentTimeMillis() + 60_000, "b".repeat(43)))
             } else {
                 OperationResult.Failure(ManagedError.INVALID_STATE)
             }
