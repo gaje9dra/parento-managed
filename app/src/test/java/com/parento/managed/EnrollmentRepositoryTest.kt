@@ -48,7 +48,7 @@ class EnrollmentRepositoryTest {
             PendingEnrollment("00000000-0000-0000-0000-000000000001", "a".repeat(43), System.currentTimeMillis() + 60_000),
         )
         state.enrollmentState = EnrollmentState.ENROLLING
-        val repository = EnrollmentRepository(FakeApi(), state, store)
+        val repository = EnrollmentRepository(FakeApi(), state, store, FakeCredentialStore())
 
         val result = repository.enroll("Child Device")
 
