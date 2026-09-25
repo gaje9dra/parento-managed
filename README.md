@@ -13,11 +13,11 @@ The companion repositories are not modified by this phase:
 
 ## Current phase
 
-Phase 4.4 — Device Identity, Enrollment State & Secure Local Configuration
+Phase 5.2 — Managed Android Secure Enrollment & Pairing Client Foundation
 
 Phase 2.5 strengthens the Phase 2.1/2.2 Room persistence layer with explicit local lifecycle transitions, repository/domain separation, deterministic identity initialization, safe error translation, and isolated integrity tests.
 
-No backend communication, authentication, enrollment workflow, remote commands, monitoring, screen sharing, camera, microphone, audio, app blocking, website blocking, or policy enforcement is implemented.
+The Managed app now has a dedicated enrollment client boundary for the Phase 5.1 backend consume contract. Remote commands, monitoring, screen sharing, camera, microphone, audio, app blocking, website blocking, and policy enforcement remain unimplemented.
 
 ## Identity and state architecture
 
@@ -176,9 +176,9 @@ Raw Room/SQLite exceptions are not exposed to UI.
 
 Application backup remains disabled.
 
-The persisted state contains no passwords, authentication tokens, refresh tokens, backend secrets, enrollment secrets, or private keys.
+Room contains no passwords, authentication tokens, refresh tokens, or private keys. Temporary Phase 5.2 enrollment authorization material is stored separately using Android encrypted preferences backed by a MasterKey and is cleared after successful completion.
 
-No sensitive Android permissions were added for Phase 2.3.
+No sensitive Android permissions were added for Phase 5.2.
 
 ## Testing
 
@@ -206,15 +206,15 @@ Expected commands:
 
 Do not treat these commands as completed unless they have actually been executed.
 
-## Phase 4.4 status
+## Phase 5.2 status
 
-The Managed application now has the Android Enterprise foundation plus Phase 4.4 local identity/state separation. Installation identity, backend-assigned managed-device identity, enrollment, connection, and Android management state are distinct. Identity recovery fails closed when existing managed state could otherwise be duplicated. Actual enrollment/pairing and management controls remain deferred.
+The Managed application now has a user-visible enrollment foundation. Enrollment ID, one-time authorization secret, expiry, and required device name are validated before submission. The enrollment repository serializes operations, persists temporary authorization securely, submits only the Phase 5.1 documented consume fields, persists the backend ManagedDevice ID only after successful completion, and keeps enrollment state separate from Android management state.
 
 ## Deferred functionality
 
 The following remain intentionally unimplemented:
-- backend REST communication
-- Retrofit
+- general backend REST communication beyond the dedicated Phase 5.1 enrollment consume boundary
+- Retrofit migration
 - WebSockets
 - FCM
 - authentication
@@ -249,3 +249,14 @@ Android Room guidance recommends explicit migration paths when preserving existi
 ## Phase 4.4 — Lifecycle & Reliability
 
 The Managed app now has centralized startup state, lifecycle-aware management refresh, event-driven connectivity observation, and a WorkManager boundary for explicitly scheduled future jobs. Initialization and state recovery remain Android-supported and fail-closed. See `docs/phase-4.4-lifecycle-reliability.md`.
+
+
+## Phase 5.2 enrollment documentation
+
+See `docs/phase-5.2-enrollment-client.md`.
+
+The Phase 5.1 backend contract is intentionally consumed read-only from this repository. The Managed app does not use administrator authentication. Backend create/list/status/cancel endpoints remain Admin-only.
+
+The Managed app's local Cancel action clears temporary local authorization and returns local enrollment state to UNENROLLED; it does not claim that the administrator-side backend session was cancelled.
+
+A backend recovery/status operation for a Managed installation is not part of Phase 5.1. If a process dies after backend consumption commits but before the client persists the response, the client fails closed rather than guessing the ManagedDevice ID. Automatic retry is therefore intentionally disabled.
