@@ -3,14 +3,14 @@ package com.parento.managed.location
 import com.parento.managed.data.local.LocationStateDao
 import com.parento.managed.data.local.LocationStateEntity
 import com.parento.managed.domain.OperationResult
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocationRepositoryTest {
     @Test
-    fun savesOnlyValidatedCoordinatesAndCreatesReportId() = runTest {
+    fun savesOnlyValidatedCoordinatesAndCreatesReportId() = runBlocking {
         val dao = FakeLocationStateDao()
         val repository = RoomLocationRepository(dao)
         val result = repository.saveObserved(
