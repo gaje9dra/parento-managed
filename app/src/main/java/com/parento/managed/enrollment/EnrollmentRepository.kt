@@ -15,19 +15,56 @@ class EnrollmentRepository(
     private val mutex = Mutex()
 
     suspend fun restorePending(): OperationResult<PendingEnrollment?> = mutex.withLock {
-        when (val result = secureStore.read()) {
-            is OperationResult.Failure -> result
-            is OperationResult.Success -> {
-                val pending = result.value ?: return@withLock result
-                if (pending.expiresAtEpochMillis <= System.currentTimeMillis()) {
-                    secureStore.clear()
-                    localStateRepository.updateEnrollmentState(EnrollmentState.UNENROLLED)
-                    OperationResult.Success(null)
-                } else {
-                    OperationResult.Success(pending)
+        val pending = when (val result = secureStore.read()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        }
+
+        val state = when (val result = localStateRepository.getEnrollmentState()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        }
+
+        if (pending == null) {
+            if (state == EnrollmentState.ENROLLING) {
+                localStateRepository.updateEnrollmentState(EnrollmentState.ERROR)
+            }
+            return@withLock OperationResult.Success(null)
+        }
+
+        if (pending.expiresAtEpochMillis <= System.currentTimeMillis()) {
+            secureStore.clear()
+            if (state == EnrollmentState.ENROLLING || state == EnrollmentState.ERROR) {
+                localStateRepository.updateEnrollmentState(EnrollmentState.UNENROLLED)
+            }
+            return@withLock OperationResult.Success(null)
+        }
+
+        when (state) {
+            EnrollmentState.UNENROLLED -> {
+                when (val transition = localStateRepository.updateEnrollmentState(EnrollmentState.ENROLLING)) {
+                    is OperationResult.Failure -> {
+                        secureStore.clear()
+                        return@withLock transition
+                    }
+                    is OperationResult.Success -> Unit
                 }
             }
+            EnrollmentState.ENROLLING -> Unit
+            EnrollmentState.ERROR,
+            EnrollmentState.ENROLLED,
+            EnrollmentState.REVOKED -> {
+                // Never replay a one-time authorization after an uncertain or terminal
+                // local outcome. A fresh administrator-issued enrollment is required.
+                secureStore.clear()
+                if (state == EnrollmentState.ERROR) {
+                    localStateRepository.updateEnrollmentState(EnrollmentState.UNENROLLED)
+                }
+                return@withLock OperationResult.Success(null)
+            }
         }
+
+        OperationResult.Success(pending)
     }
 
     suspend fun begin(
@@ -35,65 +72,67 @@ class EnrollmentRepository(
         authorizationSecret: String,
         expiresAtEpochMillis: Long,
     ): OperationResult<PendingEnrollment> = mutex.withLock {
+        val normalizedId = enrollmentId.trim()
+        val normalizedSecret = authorizationSecret.trim()
         if (
-            !isValidEnrollmentId(enrollmentId) ||
-            !isValidAuthorizationSecret(authorizationSecret) ||
+            !isValidEnrollmentId(normalizedId) ||
+            !isValidAuthorizationSecret(normalizedSecret) ||
             expiresAtEpochMillis <= System.currentTimeMillis()
         ) {
             return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
         }
-        when (val current = localStateRepository.getEnrollmentState()) {
-            is OperationResult.Failure -> return@withLock current
-            is OperationResult.Success ->
-                if (current.value != EnrollmentState.UNENROLLED &&
-                    current.value != EnrollmentState.ERROR
-                ) {
-                    return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
-                }
+
+        val current = when (val result = localStateRepository.getEnrollmentState()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
         }
-        val pending = PendingEnrollment(
-            enrollmentId.trim(),
-            authorizationSecret.trim(),
-            expiresAtEpochMillis,
-        )
+        if (current != EnrollmentState.UNENROLLED && current != EnrollmentState.ERROR) {
+            return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
+        }
+
+        // ERROR is a terminal local outcome for the previous one-time authorization.
+        // Starting again replaces it with a fresh administrator-issued authorization.
+        secureStore.clear()
+        val pending = PendingEnrollment(normalizedId, normalizedSecret, expiresAtEpochMillis)
         when (val saved = secureStore.save(pending)) {
             is OperationResult.Failure -> saved
             is OperationResult.Success -> {
-                val state = localStateRepository.getEnrollmentState()
-                if (state is OperationResult.Failure) return@withLock state
-                if (state is OperationResult.Success &&
-                    state.value == EnrollmentState.UNENROLLED
-                ) {
-                    localStateRepository.updateEnrollmentState(EnrollmentState.ENROLLING)
+                when (val transition = localStateRepository.updateEnrollmentState(EnrollmentState.ENROLLING)) {
+                    is OperationResult.Failure -> {
+                        secureStore.clear()
+                        transition
+                    }
+                    is OperationResult.Success -> OperationResult.Success(pending)
                 }
-                OperationResult.Success(pending)
             }
         }
     }
 
     suspend fun enroll(name: String): OperationResult<EnrollmentResult> = mutex.withLock {
         val normalizedName = name.trim()
-        if (normalizedName.isBlank() || normalizedName.length > 100) {
+        if (
+            normalizedName.isBlank() ||
+            normalizedName.length > 100 ||
+            normalizedName.any { it.isISOControl() }
+        ) {
             return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
         }
+
         when (val state = localStateRepository.getEnrollmentState()) {
             is OperationResult.Failure -> return@withLock state
-            is OperationResult.Success -> when (state.value) {
-                EnrollmentState.ERROR -> {
-                    when (val transition = localStateRepository.updateEnrollmentState(EnrollmentState.ENROLLING)) {
-                        is OperationResult.Failure -> return@withLock transition
-                        is OperationResult.Success -> Unit
-                    }
+            is OperationResult.Success ->
+                if (state.value != EnrollmentState.ENROLLING) {
+                    return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
                 }
-                EnrollmentState.ENROLLING -> Unit
-                else -> return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
-            }
         }
 
         val pending = when (val stored = secureStore.read()) {
             is OperationResult.Failure -> return@withLock stored
             is OperationResult.Success -> stored.value
-        } ?: return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
+        } ?: run {
+            localStateRepository.updateEnrollmentState(EnrollmentState.ERROR)
+            return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
+        }
 
         if (pending.expiresAtEpochMillis <= System.currentTimeMillis()) {
             secureStore.clear()
@@ -114,12 +153,32 @@ class EnrollmentRepository(
             )
         ) {
             is OperationResult.Failure -> {
+                // The backend consume operation is one-time. A timeout or transport failure
+                // may occur after the server commits, so the same authorization must never
+                // be retried automatically or restored after process death.
+                secureStore.clear()
                 localStateRepository.updateEnrollmentState(EnrollmentState.ERROR)
                 result
             }
             is OperationResult.Success -> {
-                when (val state = localStateRepository.completeEnrollment(result.value.managedDeviceId)) {
-                    is OperationResult.Failure -> state
+                val response = result.value
+                if (
+                    response.enrollmentId != pending.enrollmentId ||
+                    response.managedDeviceId.isBlank()
+                ) {
+                    secureStore.clear()
+                    localStateRepository.updateEnrollmentState(EnrollmentState.ERROR)
+                    return@withLock OperationResult.Failure(ManagedError.UNKNOWN)
+                }
+
+                when (val state = localStateRepository.completeEnrollment(response.managedDeviceId)) {
+                    is OperationResult.Failure -> {
+                        // The backend has already consumed the one-time authorization. Do not
+                        // retain it while local persistence is recovering from an error.
+                        secureStore.clear()
+                        localStateRepository.updateEnrollmentState(EnrollmentState.ERROR)
+                        state
+                    }
                     is OperationResult.Success -> {
                         secureStore.clear()
                         result
@@ -130,7 +189,9 @@ class EnrollmentRepository(
     }
 
     suspend fun cancel(): OperationResult<Unit> = mutex.withLock {
-        secureStore.clear()
+        val clearResult = secureStore.clear()
+        if (clearResult is OperationResult.Failure) return@withLock clearResult
+
         when (val state = localStateRepository.getEnrollmentState()) {
             is OperationResult.Failure -> state
             is OperationResult.Success ->
@@ -145,9 +206,8 @@ class EnrollmentRepository(
     }
 }
 
-
 private fun isValidEnrollmentId(value: String): Boolean =
-    runCatching { java.util.UUID.fromString(value.trim()) }.isSuccess
+    runCatching { java.util.UUID.fromString(value) }.isSuccess
 
 private fun isValidAuthorizationSecret(value: String): Boolean =
-    value.trim().length == 43 && value.trim().matches(Regex("[A-Za-z0-9_-]{43}"))
+    value.length == 43 && value.matches(Regex("[A-Za-z0-9_-]{43}"))
