@@ -8,6 +8,7 @@ import com.parento.managed.domain.ManagedError
 import com.parento.managed.device.ManagementMode
 import com.parento.managed.lifecycle.ManagementState
 import com.parento.managed.monitoring.MonitoringSnapshot
+import com.parento.managed.location.LocationCapabilityState
 
 class ManagedStatusViewModel(
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
@@ -23,6 +24,7 @@ class ManagedStatusViewModel(
         enrollmentState: com.parento.managed.domain.EnrollmentState,
         connectionState: ConnectionState,
         monitoringSnapshot: MonitoringSnapshot? = null,
+        locationCapability: LocationCapabilityState = LocationCapabilityState.PERMISSION_REQUIRED,
     ) {
         val status = when (enrollmentState) {
             com.parento.managed.domain.EnrollmentState.UNENROLLED -> DeviceStatus.UNENROLLED
@@ -37,10 +39,10 @@ class ManagedStatusViewModel(
             ManagementMode.DEVICE_OWNER -> "Device Owner"
             ManagementMode.UNKNOWN -> "Management mode unavailable"
         }
-        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState), monitoringSnapshot))
+        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState), locationCapability, monitoringSnapshot))
     }
 
-    fun showDeviceState(status: DeviceStatus, connectionState: ConnectionState, monitoringSnapshot: MonitoringSnapshot? = null) {
+    fun showDeviceState(status: DeviceStatus, connectionState: ConnectionState, monitoringSnapshot: MonitoringSnapshot? = null, locationCapability: LocationCapabilityState = LocationCapabilityState.PERMISSION_REQUIRED) {
         val managementLabel = when (status) {
             DeviceStatus.UNENROLLED -> "Not enrolled"
             DeviceStatus.ENROLLING -> "Enrollment in progress"
@@ -48,7 +50,7 @@ class ManagedStatusViewModel(
             DeviceStatus.REVOKED -> "Management revoked"
             DeviceStatus.ERROR -> "Management state error"
         }
-        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState), monitoringSnapshot))
+        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState), locationCapability, monitoringSnapshot))
     }
 
     fun showError(error: ManagedError, message: String, canRetry: Boolean = false) {
@@ -80,6 +82,7 @@ class ManagedStatusViewModel(
                 savedStateHandle[DEVICE_STATUS_KEY] = state.deviceStatus.name
                 savedStateHandle[MANAGEMENT_LABEL_KEY] = state.managementLabel
                 savedStateHandle[CONNECTION_LABEL_KEY] = state.connectionLabel
+                savedStateHandle[LOCATION_CAPABILITY_KEY] = state.locationCapability.name
                 STATE_CONTENT
             }
             is ManagedUiState.Error -> {
@@ -98,7 +101,8 @@ class ManagedStatusViewModel(
                 val status = savedStateHandle.get<String>(DEVICE_STATUS_KEY)?.let { runCatching { DeviceStatus.valueOf(it) }.getOrNull() }
                 val managementLabel = savedStateHandle.get<String>(MANAGEMENT_LABEL_KEY)
                 val connectionLabel = savedStateHandle.get<String>(CONNECTION_LABEL_KEY)
-                if (status != null && managementLabel != null && connectionLabel != null) ManagedUiState.Content(status, managementLabel, connectionLabel)
+                val locationCapability = savedStateHandle.get<String>(LOCATION_CAPABILITY_KEY)?.let { runCatching { LocationCapabilityState.valueOf(it) }.getOrNull() } ?: LocationCapabilityState.PERMISSION_REQUIRED
+                if (status != null && managementLabel != null && connectionLabel != null) ManagedUiState.Content(status, managementLabel, connectionLabel, locationCapability)
                 else ManagedUiState.Unenrolled
             }
             STATE_ERROR -> {
@@ -122,5 +126,6 @@ class ManagedStatusViewModel(
         const val ERROR_KEY = "error_type"
         const val ERROR_MESSAGE_KEY = "error_message"
         const val ERROR_RETRY_KEY = "error_can_retry"
+        const val LOCATION_CAPABILITY_KEY = "location_capability"
     }
 }
