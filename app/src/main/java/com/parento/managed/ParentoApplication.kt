@@ -34,6 +34,7 @@ import com.parento.managed.logging.AndroidManagedLogger
 import com.parento.managed.logging.LogLevel
 import com.parento.managed.logging.ManagedLogger
 import com.parento.managed.policy.DefaultPolicyEngine
+import com.parento.managed.monitoring.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -55,6 +56,7 @@ class ParentoApplication : Application() {
     private lateinit var logger: ManagedLogger
     private lateinit var connectivityObserver: ConnectivityObserver
     private lateinit var startupOrchestrator: ManagedStartupOrchestrator
+    private lateinit var monitoringScheduler: MonitoringScheduler
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
@@ -125,6 +127,8 @@ class ParentoApplication : Application() {
         startupOrchestrator = ManagedStartupOrchestrator(initializer)
 
         WorkManagerBackgroundWorkScheduler(this)
+        monitoringScheduler = MonitoringScheduler(this)
+        monitoringScheduler.schedule()
 
         connectivityObserver = AndroidConnectivityObserver(
             context = this,
