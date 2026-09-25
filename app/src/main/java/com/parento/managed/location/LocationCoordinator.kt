@@ -16,7 +16,7 @@ class LocationCoordinator(
                     is OperationResult.Failure -> saved
                     is OperationResult.Success -> {
                         when (reporter.reportLatest()) {
-                            is OperationResult.Failure -> OperationResult.Failure(com.parento.managed.domain.ManagedError.NETWORK_FAILURE)
+                            is OperationResult.Failure -> result
                             is OperationResult.Success -> OperationResult.Success(LocationCapabilityState.AVAILABLE)
                         }
                     }
