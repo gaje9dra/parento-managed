@@ -7,6 +7,7 @@ import com.parento.managed.domain.DeviceStatus
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.device.ManagementMode
 import com.parento.managed.lifecycle.ManagementState
+import com.parento.managed.monitoring.MonitoringSnapshot
 
 class ManagedStatusViewModel(
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
@@ -21,6 +22,7 @@ class ManagedStatusViewModel(
         managementState: ManagementState,
         enrollmentState: com.parento.managed.domain.EnrollmentState,
         connectionState: ConnectionState,
+        monitoringSnapshot: MonitoringSnapshot? = null,
     ) {
         val status = when (enrollmentState) {
             com.parento.managed.domain.EnrollmentState.UNENROLLED -> DeviceStatus.UNENROLLED
@@ -35,10 +37,10 @@ class ManagedStatusViewModel(
             ManagementMode.DEVICE_OWNER -> "Device Owner"
             ManagementMode.UNKNOWN -> "Management mode unavailable"
         }
-        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState)))
+        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState), monitoringSnapshot))
     }
 
-    fun showDeviceState(status: DeviceStatus, connectionState: ConnectionState) {
+    fun showDeviceState(status: DeviceStatus, connectionState: ConnectionState, monitoringSnapshot: MonitoringSnapshot? = null) {
         val managementLabel = when (status) {
             DeviceStatus.UNENROLLED -> "Not enrolled"
             DeviceStatus.ENROLLING -> "Enrollment in progress"
@@ -46,7 +48,7 @@ class ManagedStatusViewModel(
             DeviceStatus.REVOKED -> "Management revoked"
             DeviceStatus.ERROR -> "Management state error"
         }
-        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState)))
+        updateState(ManagedUiState.Content(status, managementLabel, connectionLabel(connectionState), monitoringSnapshot))
     }
 
     fun showError(error: ManagedError, message: String, canRetry: Boolean = false) {

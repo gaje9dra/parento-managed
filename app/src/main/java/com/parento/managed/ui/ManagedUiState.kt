@@ -2,6 +2,7 @@ package com.parento.managed.ui
 
 import com.parento.managed.domain.DeviceStatus
 import com.parento.managed.domain.ManagedError
+import com.parento.managed.monitoring.MonitoringSnapshot
 
 sealed interface ManagedUiState {
     data object Loading : ManagedUiState
@@ -10,6 +11,7 @@ sealed interface ManagedUiState {
         val deviceStatus: DeviceStatus,
         val managementLabel: String,
         val connectionLabel: String,
+        val monitoringSnapshot: MonitoringSnapshot? = null,
     ) : ManagedUiState
     data class Error(
         val error: ManagedError,

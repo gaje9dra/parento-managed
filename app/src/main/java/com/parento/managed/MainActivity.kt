@@ -17,6 +17,7 @@ import com.parento.managed.enrollment.EnrollmentViewModel
 import com.parento.managed.enrollment.EnrollmentViewModelFactory
 import com.parento.managed.ui.ManagedStatusScreen
 import com.parento.managed.ui.ManagedStatusViewModel
+import com.parento.managed.monitoring.RoomMonitoringRepository
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -74,6 +75,16 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 launch {
+                    RoomMonitoringRepository(com.parento.managed.data.local.LocalDatabaseProvider.get().monitoringSnapshotDao()).observe().collect { monitoring ->
+                        val current = app.managementInitialization.value
+                        if (current is OperationResult.Success) {
+                            val snapshot = (monitoring as? OperationResult.Success)?.value
+                            statusViewModel.showManagementState(current.value, current.value.enrollmentState, app.connectionState.value, snapshot)
+                            statusScreen.render(statusViewModel.uiState)
+                        }
+                    }
+                }
+                launch {
                     app.connectionState.collect { connection ->
                         val current = app.managementInitialization.value
                         if (current is OperationResult.Success) {
@@ -81,6 +92,7 @@ class MainActivity : AppCompatActivity() {
                                 current.value,
                                 current.value.enrollmentState,
                                 connection,
+                                null,
                             )
                             statusScreen.render(statusViewModel.uiState)
                         }

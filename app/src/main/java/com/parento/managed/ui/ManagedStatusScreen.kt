@@ -9,6 +9,7 @@ import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textview.MaterialTextView
 import com.parento.managed.BuildConfig
 import com.parento.managed.R
+import com.parento.managed.monitoring.MonitoringSnapshot
 
 class ManagedStatusScreen(
     private val context: Context,
@@ -78,7 +79,426 @@ class ManagedStatusScreen(
         addMessage(context.getString(R.string.connection_state_title))
         addMessage(state.connectionLabel)
         addMessage(context.getString(R.string.no_device_features_message))
+        state.monitoringSnapshot?.let { renderMonitoring(it) }
     }
+
+    private fun renderMonitoring(snapshot: MonitoringSnapshot) {
+        addMessage("Android: ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{snapshot.deviceInfo.androidVersion} (API ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{snapshot.deviceInfo.apiLevel})")
+        addMessage("App: ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{snapshot.deviceInfo.appVersion} (${ '
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+ }{snapshot.deviceInfo.appVersionCode})")
+        addMessage("Battery: ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{snapshot.battery.percentage?.let { "${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}it%" } ?: "Unavailable"} · ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{snapshot.battery.chargingState}")
+        addMessage("Network: ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{snapshot.network.state}")
+        addMessage("Storage: ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{formatBytes(snapshot.storage.availableBytes)} available / ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{formatBytes(snapshot.storage.totalBytes)} total")
+        addMessage("Memory: ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{formatBytes(snapshot.memory.availableBytes)} available / ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{formatBytes(snapshot.memory.totalBytes)} total")
+        addMessage("Last monitoring update: ${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{snapshot.lastMonitoringUpdateEpochMillis}")
+    }
+
+    private fun formatBytes(value: Long?): String = value?.let { "${'
+        subtitle.text = context.getString(R.string.error_state)
+        addMessage(state.message)
+        if (state.canRetry) {
+            addAction(context.getString(R.string.retry))
+        }
+    }
+
+    private fun addMessage(message: String) {
+        content.addView(
+            MaterialTextView(context).apply {
+                text = message
+                textSize = 17f
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+
+    private fun addAction(text: String) {
+        content.addView(
+            com.google.android.material.button.MaterialButton(context).apply {
+                this.text = text
+                setOnClickListener { onRetry() }
+                minHeight = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+            },
+            LinearLayout.LayoutParams(-1, -2),
+        )
+    }
+}
+}{it / (1024L * 1024L)} MB" } ?: "Unavailable"
 
     private fun renderError(state: ManagedUiState.Error) {
         subtitle.text = context.getString(R.string.error_state)

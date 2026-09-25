@@ -8,13 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [LocalApplicationStateEntity::class, ManagedCommandEntity::class],
-    version = 6,
+    entities = [LocalApplicationStateEntity::class, ManagedCommandEntity::class, MonitoringSnapshotEntity::class],
+    version = 7,
     exportSchema = false,
 )
 abstract class ParentoDatabase : RoomDatabase() {
     abstract fun localApplicationStateDao(): LocalApplicationStateDao
     abstract fun managedCommandDao(): ManagedCommandDao
+    abstract fun monitoringSnapshotDao(): MonitoringSnapshotDao
 
     companion object {
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
@@ -27,27 +28,15 @@ abstract class ParentoDatabase : RoomDatabase() {
         }
         val MIGRATION_2_3: Migration = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
-                    CREATE TABLE local_application_state_new (
-                        id INTEGER NOT NULL,
-                        stateVersion INTEGER NOT NULL,
-                        lastSynchronizationTimestamp INTEGER,
-                        initialized INTEGER NOT NULL,
-                        installationId TEXT,
-                        identityCreatedAtEpochMillis INTEGER,
-                        enrollmentState TEXT NOT NULL,
-                        PRIMARY KEY(id)
-                    )
-                """.trimIndent())
-                database.execSQL("""
-                    INSERT INTO local_application_state_new (
-                        id,stateVersion,lastSynchronizationTimestamp,initialized,
-                        installationId,identityCreatedAtEpochMillis,enrollmentState
-                    )
-                    SELECT id,stateVersion,lastSynchronizationTimestamp,initialized,
-                        installationId,identityCreatedAtEpochMillis,enrollmentState
-                    FROM local_application_state
-                """.trimIndent())
+                database.execSQL("""CREATE TABLE local_application_state_new (
+                    id INTEGER NOT NULL,stateVersion INTEGER NOT NULL,lastSynchronizationTimestamp INTEGER,
+                    initialized INTEGER NOT NULL,installationId TEXT,identityCreatedAtEpochMillis INTEGER,
+                    enrollmentState TEXT NOT NULL,PRIMARY KEY(id))""".trimIndent())
+                database.execSQL("""INSERT INTO local_application_state_new (
+                    id,stateVersion,lastSynchronizationTimestamp,initialized,installationId,
+                    identityCreatedAtEpochMillis,enrollmentState)
+                    SELECT id,stateVersion,lastSynchronizationTimestamp,initialized,installationId,
+                    identityCreatedAtEpochMillis,enrollmentState FROM local_application_state""".trimIndent())
                 database.execSQL("DROP TABLE local_application_state")
                 database.execSQL("ALTER TABLE local_application_state_new RENAME TO local_application_state")
             }
@@ -67,33 +56,32 @@ abstract class ParentoDatabase : RoomDatabase() {
         }
         val MIGRATION_5_6: Migration = object : Migration(5, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
-                    CREATE TABLE managed_commands (
-                        commandId TEXT NOT NULL PRIMARY KEY,
-                        managedDeviceId TEXT NOT NULL,
-                        type TEXT NOT NULL,
-                        version INTEGER NOT NULL,
-                        payloadJson TEXT NOT NULL,
-                        correlationId TEXT,
-                        idempotencyKey TEXT,
-                        createdAtEpochMillis INTEGER NOT NULL,
-                        expiresAtEpochMillis INTEGER NOT NULL,
-                        state TEXT NOT NULL,
-                        resultCode TEXT,
-                        errorCategory TEXT,
-                        resultMetadataJson TEXT,
-                        updatedAtEpochMillis INTEGER NOT NULL
-                    )
-                """.trimIndent())
+                database.execSQL("""CREATE TABLE managed_commands (
+                    commandId TEXT NOT NULL PRIMARY KEY,managedDeviceId TEXT NOT NULL,type TEXT NOT NULL,
+                    version INTEGER NOT NULL,payloadJson TEXT NOT NULL,correlationId TEXT,idempotencyKey TEXT,
+                    createdAtEpochMillis INTEGER NOT NULL,expiresAtEpochMillis INTEGER NOT NULL,state TEXT NOT NULL,
+                    resultCode TEXT,errorCategory TEXT,resultMetadataJson TEXT,updatedAtEpochMillis INTEGER NOT NULL)""".trimIndent())
                 database.execSQL("CREATE INDEX index_managed_commands_updatedAtEpochMillis ON managed_commands(updatedAtEpochMillis)")
+            }
+        }
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""CREATE TABLE monitoring_snapshot (
+                    id INTEGER NOT NULL PRIMARY KEY, collectedAtEpochMillis INTEGER NOT NULL,
+                    managedDeviceId TEXT, installationId TEXT, managementMode TEXT NOT NULL,
+                    androidVersion TEXT NOT NULL, apiLevel INTEGER NOT NULL, appVersion TEXT NOT NULL,
+                    appVersionCode INTEGER NOT NULL, batteryPercentage INTEGER, chargingState TEXT NOT NULL,
+                    batteryStatus TEXT NOT NULL, networkState TEXT NOT NULL, storageTotalBytes INTEGER,
+                    storageAvailableBytes INTEGER, storageUsedBytes INTEGER, memoryTotalBytes INTEGER,
+                    memoryAvailableBytes INTEGER, lowMemory INTEGER,
+                    lastSuccessfulInitializationEpochMillis INTEGER,
+                    lastSuccessfulCommunicationEpochMillis INTEGER,
+                    lastMonitoringUpdateEpochMillis INTEGER NOT NULL)""".trimIndent())
             }
         }
 
         fun builder(context: Context): RoomDatabase.Builder<ParentoDatabase> =
-            Room.databaseBuilder(
-                context.applicationContext,
-                ParentoDatabase::class.java,
-                "parento-managed.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            Room.databaseBuilder(context.applicationContext, ParentoDatabase::class.java, "parento-managed.db")
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
     }
 }
