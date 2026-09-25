@@ -33,7 +33,10 @@ class EnrollmentRepository(
         }
 
         if (pending.expiresAtEpochMillis <= System.currentTimeMillis()) {
-            secureStore.clear()
+            when (val clearResult = secureStore.clear()) {
+                is OperationResult.Failure -> return@withLock clearResult
+                is OperationResult.Success -> Unit
+            }
             if (state == EnrollmentState.ENROLLING || state == EnrollmentState.ERROR) {
                 localStateRepository.updateEnrollmentState(EnrollmentState.UNENROLLED)
             }
@@ -56,7 +59,10 @@ class EnrollmentRepository(
             EnrollmentState.REVOKED -> {
                 // Never replay a one-time authorization after an uncertain or terminal
                 // local outcome. A fresh administrator-issued enrollment is required.
-                secureStore.clear()
+                when (val clearResult = secureStore.clear()) {
+                    is OperationResult.Failure -> return@withLock clearResult
+                    is OperationResult.Success -> Unit
+                }
                 if (state == EnrollmentState.ERROR) {
                     localStateRepository.updateEnrollmentState(EnrollmentState.UNENROLLED)
                 }
@@ -92,7 +98,10 @@ class EnrollmentRepository(
 
         // ERROR is a terminal local outcome for the previous one-time authorization.
         // Starting again replaces it with a fresh administrator-issued authorization.
-        secureStore.clear()
+        when (val clearResult = secureStore.clear()) {
+            is OperationResult.Failure -> return@withLock clearResult
+            is OperationResult.Success -> Unit
+        }
         val pending = PendingEnrollment(normalizedId, normalizedSecret, expiresAtEpochMillis)
         when (val saved = secureStore.save(pending)) {
             is OperationResult.Failure -> saved
