@@ -61,6 +61,7 @@ private class FakeLocalStateRepository : LocalStateRepository {
     override suspend fun updateEnrollmentState(state: EnrollmentState) = OperationResult.Success(Unit)
     override suspend fun getConnectionState() = OperationResult.Success(ConnectionState.CONNECTED)
     override suspend fun updateConnectionState(state: ConnectionState) = OperationResult.Success(Unit)
+    override suspend fun updateLastSynchronizationTimestamp(epochMillis: Long) = OperationResult.Success(Unit)
     override suspend fun getManagedDeviceId() = OperationResult.Success<String?>("managed-1")
     override suspend fun completeEnrollment(managedDeviceId: String) = OperationResult.Success(Unit)
     override suspend fun read() = OperationResult.Success<LocalApplicationState?>(null)

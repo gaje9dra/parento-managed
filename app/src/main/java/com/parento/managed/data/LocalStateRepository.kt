@@ -29,6 +29,7 @@ interface EnrollmentStateRepository {
 interface ConnectionStateRepository {
     suspend fun getConnectionState(): OperationResult<ConnectionState>
     suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit>
+    suspend fun updateLastSynchronizationTimestamp(epochMillis: Long): OperationResult<Unit>
 }
 
 interface ManagedDeviceStateRepository {
@@ -175,6 +176,15 @@ class RoomLocalStateRepository(
                         enrollmentState = EnrollmentState.ENROLLED,
                     ).toEntity(),
                 )
+            }
+        }
+
+    override suspend fun updateLastSynchronizationTimestamp(epochMillis: Long): OperationResult<Unit> =
+        stateMutex.withLock {
+            runStorageOperation {
+                require(epochMillis > 0L)
+                val current = dao.read()?.toDomain() ?: LocalApplicationState()
+                dao.upsert(current.copy(lastSynchronizationTimestamp = epochMillis).toEntity())
             }
         }
 

@@ -34,51 +34,7 @@ class DeviceCommunicationSessionManager(
         OperationResult.Success(ConnectionState.DISCONNECTED)
     }
 
-    suspend fun connect(): OperationResult<ConnectionState> = mutex.withLock {
-        val enrollment = when (val result = localStateRepository.getEnrollmentState()) {
-            is OperationResult.Failure -> return@withLock result
-            is OperationResult.Success -> result.value
-        }
-        if (enrollment != EnrollmentState.ENROLLED) return@withLock fail(ManagedError.AUTHORIZATION_FAILURE)
-
-        val deviceId = when (val result = localStateRepository.getManagedDeviceId()) {
-            is OperationResult.Failure -> return@withLock result
-            is OperationResult.Success -> result.value
-        } ?: return@withLock fail(ManagedError.AUTHORIZATION_FAILURE)
-
-        val credential = when (val result = credentialStore.read()) {
-            is OperationResult.Failure -> return@withLock result
-            is OperationResult.Success -> result.value
-        } ?: return@withLock fail(ManagedError.AUTHORIZATION_FAILURE)
-
-        transition(ConnectionState.CONNECTING)
-        transition(ConnectionState.AUTHENTICATING)
-        when (val result = transport.connect(credential)) {
-            is OperationResult.Failure -> {
-                transition(ConnectionState.FAILED)
-                transition(ConnectionState.DISCONNECTED)
-                result
-            }
-            is OperationResult.Success -> {
-                if (result.value.managedDeviceId != deviceId) {
-                    sessionStore.clear()
-                    transition(ConnectionState.FAILED)
-                    transition(ConnectionState.DISCONNECTED)
-                    OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
-                } else {
-                    val saved = sessionStore.save(DeviceSession(result.value.sessionId, result.value.managedDeviceId, result.value.sessionToken, result.value.expiresAtEpochMillis))
-                    if (saved is OperationResult.Failure) {
-                        transition(ConnectionState.FAILED)
-                        transition(ConnectionState.DISCONNECTED)
-                        saved
-                    } else {
-                        transition(ConnectionState.CONNECTED)
-                        OperationResult.Success(ConnectionState.CONNECTED)
-                    }
-                }
-            }
-        }
-    }
+    suspend fun connect(): OperationResult<ConnectionState> = mutex.withLock { connectUnlocked() }
 
     suspend fun heartbeat(): OperationResult<ConnectionState> = mutex.withLock {
         val session = when (val result = sessionStore.read()) {
@@ -102,6 +58,125 @@ class DeviceCommunicationSessionManager(
                 sessionStore.save(session.copy(expiresAtEpochMillis = result.value))
                 transition(ConnectionState.CONNECTED)
                 OperationResult.Success(ConnectionState.CONNECTED)
+            }
+        }
+    }
+
+    suspend fun ensureConnected(): OperationResult<ConnectionState> = mutex.withLock {
+        val enrollment = when (val result = localStateRepository.getEnrollmentState()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        }
+        if (enrollment != EnrollmentState.ENROLLED) {
+            return@withLock fail(ManagedError.AUTHORIZATION_FAILURE)
+        }
+
+        val stored = when (val result = sessionStore.read()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        }
+        if (stored != null && stored.expiresAtEpochMillis > System.currentTimeMillis()) {
+            if (_state.value != ConnectionState.CONNECTED) {
+                if (_state.value != ConnectionState.DISCONNECTED) {
+                    transition(ConnectionState.DISCONNECTED)
+                }
+                transition(ConnectionState.CONNECTING)
+                transition(ConnectionState.AUTHENTICATING)
+                transition(ConnectionState.CONNECTED)
+            }
+            return@withLock OperationResult.Success(ConnectionState.CONNECTED)
+        }
+        if (stored != null) sessionStore.clear()
+
+        connectUnlocked()
+    }
+
+    suspend fun submitMonitoring(
+        managedDeviceId: String,
+        payload: String,
+        collectedAtEpochMillis: Long,
+    ): OperationResult<Unit> = mutex.withLock {
+        val localDeviceId = when (val result = localStateRepository.getManagedDeviceId()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        }
+        if (localDeviceId == null || localDeviceId != managedDeviceId) {
+            return@withLock OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
+        }
+        if (collectedAtEpochMillis <= 0L) {
+            return@withLock OperationResult.Failure(ManagedError.INVALID_STATE)
+        }
+
+        val session = when (val result = sessionStore.read()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        } ?: return@withLock OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+
+        if (session.managedDeviceId != managedDeviceId ||
+            session.expiresAtEpochMillis <= System.currentTimeMillis()
+        ) {
+            sessionStore.clear()
+            transition(ConnectionState.DISCONNECTED)
+            return@withLock OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+        }
+
+        when (val result = transport.submitMonitoring(session.sessionToken, payload)) {
+            is OperationResult.Failure -> {
+                transition(ConnectionState.RECONNECTING)
+                transition(ConnectionState.DISCONNECTED)
+                result
+            }
+            is OperationResult.Success -> {
+                localStateRepository.updateLastSynchronizationTimestamp(System.currentTimeMillis())
+                transition(ConnectionState.CONNECTED)
+                OperationResult.Success(Unit)
+            }
+        }
+    }
+
+    private suspend fun connectUnlocked(): OperationResult<ConnectionState> {
+        val deviceId = when (val result = localStateRepository.getManagedDeviceId()) {
+            is OperationResult.Failure -> return result
+            is OperationResult.Success -> result
+        } ?: return fail(ManagedError.AUTHORIZATION_FAILURE)
+
+        val credential = when (val result = credentialStore.read()) {
+            is OperationResult.Failure -> return result
+            is OperationResult.Success -> result
+        } ?: return fail(ManagedError.AUTHORIZATION_FAILURE)
+
+        transition(ConnectionState.CONNECTING)
+        transition(ConnectionState.AUTHENTICATING)
+        return when (val result = transport.connect(credential)) {
+            is OperationResult.Failure -> {
+                transition(ConnectionState.FAILED)
+                transition(ConnectionState.DISCONNECTED)
+                result
+            }
+            is OperationResult.Success -> {
+                if (result.value.managedDeviceId != deviceId) {
+                    sessionStore.clear()
+                    transition(ConnectionState.FAILED)
+                    transition(ConnectionState.DISCONNECTED)
+                    OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
+                } else {
+                    val saved = sessionStore.save(
+                        DeviceSession(
+                            result.value.sessionId,
+                            result.value.managedDeviceId,
+                            result.value.sessionToken,
+                            result.value.expiresAtEpochMillis,
+                        ),
+                    )
+                    if (saved is OperationResult.Failure) {
+                        transition(ConnectionState.FAILED)
+                        transition(ConnectionState.DISCONNECTED)
+                        saved
+                    } else {
+                        transition(ConnectionState.CONNECTED)
+                        OperationResult.Success(ConnectionState.CONNECTED)
+                    }
+                }
             }
         }
     }

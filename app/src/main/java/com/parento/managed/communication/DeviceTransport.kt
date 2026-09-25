@@ -43,6 +43,7 @@ interface DeviceTransport {
         resultMetadata: String?,
     ): OperationResult<Unit>
     suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?>
+    suspend fun submitMonitoring(sessionToken: String, payload: String): OperationResult<Unit>
 }
 
 class HttpsDeviceTransport(
@@ -101,6 +102,15 @@ class HttpsDeviceTransport(
 
     override suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?> =
         OperationResult.Success(null)
+
+    override suspend fun submitMonitoring(sessionToken: String, payload: String): OperationResult<Unit> =
+        request(
+            "/api/v1/device/monitoring",
+            "POST",
+            sessionToken,
+            JSONObject(payload),
+        ) { Unit }
+
 
     private suspend fun <T> request(
         path: String,
