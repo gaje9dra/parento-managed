@@ -14,7 +14,7 @@ class ArchitectureTest {
     @Test
     fun managedDevice_canRepresentLifecycleState() {
         val device = ManagedDevice(
-            deviceId = "device-1",
+            managedDeviceId = "device-1",
             status = DeviceStatus.ENROLLED,
             enrollmentState = EnrollmentState.ENROLLED,
             policyState = PolicyState.NOT_SYNCED,
