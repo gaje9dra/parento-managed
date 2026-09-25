@@ -10,9 +10,15 @@ enum class EnrollmentState {
 
 fun EnrollmentState.canTransitionTo(target: EnrollmentState): Boolean =
     when (this) {
-        UNENROLLED -> target == ENROLLING || target == ERROR
-        ENROLLING -> target == UNENROLLED || target == ENROLLED || target == ERROR
-        ENROLLED -> target == REVOKED || target == ERROR
-        REVOKED -> false
-        ERROR -> target == UNENROLLED || target == ENROLLING
+        EnrollmentState.UNENROLLED ->
+            target == EnrollmentState.ENROLLING || target == EnrollmentState.ERROR
+        EnrollmentState.ENROLLING ->
+            target == EnrollmentState.UNENROLLED ||
+                target == EnrollmentState.ENROLLED ||
+                target == EnrollmentState.ERROR
+        EnrollmentState.ENROLLED ->
+            target == EnrollmentState.REVOKED || target == EnrollmentState.ERROR
+        EnrollmentState.REVOKED -> false
+        EnrollmentState.ERROR ->
+            target == EnrollmentState.UNENROLLED || target == EnrollmentState.ENROLLING
     }
