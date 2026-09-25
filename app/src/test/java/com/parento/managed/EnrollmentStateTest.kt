@@ -1,6 +1,7 @@
 package com.parento.managed
 
 import com.parento.managed.domain.EnrollmentState
+import com.parento.managed.domain.canTransitionTo
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
