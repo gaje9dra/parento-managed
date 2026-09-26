@@ -2,6 +2,7 @@ package com.parento.managed
 
 import android.app.Application
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.parento.managed.audio.AudioAccessManager
 import com.parento.managed.background.WorkManagerBackgroundWorkScheduler
 import com.parento.managed.communication.AndroidDeviceCredentialStore
 import com.parento.managed.communication.AndroidDeviceSessionStore
@@ -119,6 +120,10 @@ class ParentoApplication : Application() {
         return deviceCommunicationSessionManager.connect() is OperationResult.Success
     }
 
+    val audioAccessManager: AudioAccessManager by lazy {
+        AudioAccessManager(this)
+    }
+
     val screenShareManager: ScreenShareManager by lazy {
         ScreenShareManager(this) {
             val enrollment = localStateRepository.getEnrollmentState()
@@ -144,6 +149,7 @@ class ParentoApplication : Application() {
             dao = LocalDatabaseProvider.get().managedCommandDao(),
             sessionManager = deviceCommunicationSessionManager,
             screenShareManager = screenShareManager,
+            audioAccessManager = audioAccessManager,
         )
     }
 
@@ -208,9 +214,11 @@ class ParentoApplication : Application() {
         )
 
         screenShareManager
+        audioAccessManager
         applicationScope.launch {
             localStateRepository.observe().collect {
                 screenShareManager.enforceAuthorization()
+                audioAccessManager.enforcePermissionBoundary()
             }
         }
         initialize()
