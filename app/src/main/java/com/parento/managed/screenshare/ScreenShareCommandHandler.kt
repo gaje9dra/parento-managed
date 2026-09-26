@@ -8,14 +8,24 @@ import com.parento.managed.domain.OperationResult
 import org.json.JSONObject
 import java.util.UUID
 
-internal fun parseScreenSessionId(payloadJson: String): String? =
-    runCatching {
+internal fun parseScreenSessionId(payloadJson: String): String? {
+    return try {
         val payload = JSONObject(payloadJson)
-        if (payload.length() != 1 || !payload.has("screenSessionId")) return@runCatching null
-        val id = payload.getString("screenSessionId").trim()
-        UUID.fromString(id)
-        id
-    }.getOrNull()
+        if (payload.length() != 1 || !payload.has("screenSessionId")) {
+            null
+        } else {
+            val id = payload.optString("screenSessionId", "").trim()
+            if (id.isBlank()) {
+                null
+            } else {
+                UUID.fromString(id)
+                id
+            }
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
 
 class ScreenShareStartCommandHandler(
     private val manager: ScreenShareManager,
