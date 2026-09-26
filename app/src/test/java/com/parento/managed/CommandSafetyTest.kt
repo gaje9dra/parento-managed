@@ -55,7 +55,7 @@ class CommandSafetyTest {
         val audioSessionId = "550e8400-e29b-41d4-a716-446655440099"
         val audio = command.copy(
             commandType = "START_AUDIO_ACCESS",
-            payloadJson = """{"audioSessionId":"$audioSessionId"""}""",
+            payloadJson = """{"audioSessionId":""" + audioSessionId + """}""",
             idempotencyKey = "audio-session:$audioSessionId:START_AUDIO_ACCESS",
         )
         assertTrue(DefaultCommandValidator({ audio.managedDeviceId }).validate(audio) is OperationResult.Success)
@@ -66,7 +66,7 @@ class CommandSafetyTest {
         )
         assertTrue(
             DefaultCommandValidator({ audio.managedDeviceId }).validate(
-                audio.copy(payloadJson = """{"audioSessionId":"$audioSessionId","extra":"x"}"""),
+                audio.copy(payloadJson = """{"audioSessionId":""" + audioSessionId + ""","extra":"x"}"""),
             ) is OperationResult.Failure,
         )
     }
