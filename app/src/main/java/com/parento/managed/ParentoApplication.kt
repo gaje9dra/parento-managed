@@ -122,10 +122,18 @@ class ParentoApplication : Application() {
         ScreenShareManager(this) {
             val enrollment = localStateRepository.getEnrollmentState()
             val managedDeviceId = localStateRepository.getManagedDeviceId()
+            val management = _managementInitialization.value
+            val managedByAndroid = management is OperationResult.Success &&
+                management.value.managementDetectionError == null &&
+                (
+                    management.value.managementMode == com.parento.managed.device.ManagementMode.DEVICE_OWNER ||
+                        management.value.managementMode == com.parento.managed.device.ManagementMode.PROFILE_OWNER
+                )
             enrollment is OperationResult.Success &&
                 enrollment.value == com.parento.managed.domain.EnrollmentState.ENROLLED &&
                 managedDeviceId is OperationResult.Success &&
                 !managedDeviceId.value.isNullOrBlank() &&
+                managedByAndroid &&
                 connectionState.value == com.parento.managed.domain.ConnectionState.CONNECTED
         }
     }
@@ -199,6 +207,11 @@ class ParentoApplication : Application() {
         )
 
         screenShareManager
+        applicationScope.launch {
+            localStateRepository.observe().collect {
+                screenShareManager.enforceAuthorization()
+            }
+        }
         initialize()
         logger.log(LogLevel.INFO, "Parento Managed startup orchestration started.")
     }
