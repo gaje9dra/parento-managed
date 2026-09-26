@@ -43,9 +43,8 @@ class FutureCommandPlaceholderHandler : CommandHandler {
     override val supportedVersion: Int = 1
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
-        val payload = runCatching { JSONObject(command.payloadJson) }.getOrNull()
-            ?: return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "MALFORMED_PAYLOAD", "INVALID_PAYLOAD"))
-        if (payload.length() != 0) {
+        val payload = command.payloadJson.trim()
+        if (payload != "{}") {
             return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "UNSUPPORTED_PAYLOAD", "UNSUPPORTED_COMMAND"))
         }
         return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "NOT_IMPLEMENTED", "UNSUPPORTED_COMMAND"))
