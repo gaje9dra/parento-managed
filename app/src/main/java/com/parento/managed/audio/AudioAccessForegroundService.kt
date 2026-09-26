@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class AudioAccessForegroundService : Service() {
     private var capture: AndroidAudioCaptureController? = null
@@ -72,10 +73,22 @@ class AudioAccessForegroundService : Service() {
             sessionId = validatedSessionId
             mediaTransport.start(validatedSessionId).getOrThrow()
             capture?.start(validatedSessionId) { buffer, length, timestamp ->
-                mediaTransport.send(buffer, length, timestamp)
+                mediaTransport.send(validatedSessionId, buffer, length, timestamp)
             }?.getOrThrow()
             AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.ACTIVE, validatedSessionId, System.currentTimeMillis()))
             reportedStarted = true
+            serviceScope.launch {
+                while (sessionId == validatedSessionId && AudioAccessRuntime.snapshot().state == AudioAccessState.ACTIVE) {
+                    delay(AUTHORIZATION_WATCHDOG_INTERVAL_MS)
+                    if ((application as ParentoApplication).connectionState.value != com.parento.managed.domain.ConnectionState.CONNECTED ||
+                        ContextCompat.checkSelfPermission(this@AudioAccessForegroundService, android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.FAILED, validatedSessionId, System.currentTimeMillis(), "AUTHORIZATION_OR_PERMISSION_LOST"))
+                        stopSelf()
+                        break
+                    }
+                }
+            }
             serviceScope.launch {
                 (application as ParentoApplication).deviceCommunicationSessionManager.reportAudioStarted(
                     validatedSessionId,
@@ -148,5 +161,6 @@ class AudioAccessForegroundService : Service() {
         const val EXTRA_SESSION_ID = "audio_session_id"
         private const val CHANNEL_ID = "parento_audio_access"
         private const val NOTIFICATION_ID = 9301
+        private const val AUTHORIZATION_WATCHDOG_INTERVAL_MS = 5_000L
     }
 }
