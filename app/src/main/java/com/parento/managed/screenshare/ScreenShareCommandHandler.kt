@@ -18,6 +18,12 @@ class ScreenShareStartCommandHandler(
         val sessionId = sessionId(command) ?: return OperationResult.Success(
             CommandResult(CommandExecutionState.FAILED, "INVALID_SESSION", "INVALID_SESSION"),
         )
+        val current = manager.state.value
+        if (current.state == ScreenCaptureState.ACTIVE && current.sessionId == sessionId) {
+            return OperationResult.Success(
+                CommandResult(CommandExecutionState.SUCCEEDED, "ALREADY_ACTIVE", null),
+            )
+        }
         return if (manager.requestAuthorizationFromCommand(sessionId).isSuccess) {
             OperationResult.Success(
                 CommandResult(
