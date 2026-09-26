@@ -18,8 +18,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class AudioAccessForegroundService : Service() {
     private var capture: AndroidAudioCaptureController? = null
@@ -123,7 +123,7 @@ class AudioAccessForegroundService : Service() {
             }
         }
         reportedStarted = false
-        if (current.state != AudioAccessState.FAILED) {
+        if (current.state !in setOf(AudioAccessState.FAILED, AudioAccessState.EXPIRED)) {
             AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.STOPPED, current.sessionId, System.currentTimeMillis()))
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
