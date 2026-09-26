@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioFormat
+import androidx.annotation.SuppressLint
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.core.content.ContextCompat
@@ -86,6 +87,7 @@ class AndroidAudioCaptureController(
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun createRecorder(): AudioRecord? {
         for (sampleRate in listOf(48000, 16000)) {
             val minBuffer = AudioRecord.getMinBufferSize(
