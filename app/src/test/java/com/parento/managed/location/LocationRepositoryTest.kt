@@ -4,6 +4,7 @@ import com.parento.managed.data.local.LocationStateDao
 import com.parento.managed.data.local.LocationStateEntity
 import com.parento.managed.domain.OperationResult
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
