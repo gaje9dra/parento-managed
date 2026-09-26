@@ -9,23 +9,19 @@ import org.json.JSONObject
 import java.util.UUID
 
 internal fun parseScreenSessionId(payloadJson: String): String? {
-    return try {
-        val payload = JSONObject(payloadJson)
-        if (payload.length() != 1 || !payload.has("screenSessionId")) {
-            null
-        } else {
-            val id = payload.optString("screenSessionId", "").trim()
-            if (id.isBlank()) {
-                null
-            } else {
-                UUID.fromString(id)
-                id
-            }
-        }
-    } catch (_: Exception) {
-        null
-    }
+    val match = SCREEN_SESSION_PAYLOAD_PATTERN.matchEntire(payloadJson.trim()) ?: return null
+    val id = match.groupValues[1]
+    return runCatching {
+        UUID.fromString(id)
+        id
+    }.getOrNull()
 }
+
+private val SCREEN_SESSION_PAYLOAD_PATTERN =
+    Regex(
+        """\{"screenSessionId":"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})"\}""",
+    )
+
 
 class ScreenShareStartCommandHandler(
     private val manager: ScreenShareManager,
