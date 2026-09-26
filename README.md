@@ -331,3 +331,20 @@ No shell execution, eval, dynamic code loading, hidden communication, permission
 The Phase 6.1 backend currently exposes session lifecycle and command acknowledgement/start/result endpoints but no approved device-side command delivery/realtime endpoint. This phase therefore does not invent polling, WebSockets, SSE, FCM, or an undocumented endpoint. The transport boundary is ready for a later approved delivery adapter.
 
 See docs/phase-6.2-device-communication.md for the detailed Phase 6.2 contract.
+
+
+## Phase 9.2 — Managed Android Screen Capture Foundation
+
+Phase 9.2 adds the Managed Android MediaProjection foundation for authorized screen sharing.
+
+- Uses the official Android MediaProjection authorization flow.
+- Uses a dedicated mediaProjection foreground service and user-visible notification.
+- Separates Android capture state from backend screen-sharing session state.
+- Adds allowlisted START_SCREEN_SHARE and STOP_SCREEN_SHARE command handlers to the existing command boundary.
+- Handles MediaProjection termination, cleanup, configuration changes, process death, and reboot without silently resuming capture.
+- Does not persist screen frames, screenshots, video, MediaProjection authorization objects, or reusable capture authorization.
+- Does not add a second authentication, HTTP, WebSocket, or realtime system.
+- Does not implement covert capture, Accessibility abuse, root/shell execution, hidden APIs, or permission bypasses.
+- Does not implement the Admin screen viewer or a speculative production media-streaming protocol.
+
+Detailed architecture and the real-device test plan are documented in `docs/phase-9.2-screen-capture.md`.
