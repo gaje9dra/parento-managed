@@ -78,6 +78,10 @@ class LocalStateServiceTest {
         )
         assertEquals(
             OperationResult.Success(Unit),
+            service.setConnectionState(ConnectionState.AUTHENTICATING),
+        )
+        assertEquals(
+            OperationResult.Success(Unit),
             service.setConnectionState(ConnectionState.CONNECTED),
         )
         assertEquals(0, repository.writeCount)
