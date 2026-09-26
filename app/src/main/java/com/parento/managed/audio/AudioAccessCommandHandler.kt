@@ -24,11 +24,23 @@ class AudioStartCommandHandler(private val manager: AudioAccessManager) : Comman
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
         val sessionId = parseAudioSessionId(command.payloadJson)
             ?: return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "INVALID_SESSION", "INVALID_SESSION"))
+        val expectedIdempotencyKey = "audio-session:$sessionId:$commandType"
+        if (command.idempotencyKey != expectedIdempotencyKey) {
+            return OperationResult.Success(
+                CommandResult(CommandExecutionState.FAILED, "INVALID_IDEMPOTENCY", "INVALID_COMMAND"),
+            )
+        }
         val current = manager.state.value
         if (current.state == AudioAccessState.ACTIVE && current.sessionId == sessionId) {
             return OperationResult.Success(CommandResult(CommandExecutionState.SUCCEEDED, "ALREADY_ACTIVE", null))
         }
-        if (!manager.microphonePermissionGranted()) {
+        if (current.sessionId == sessionId && current.state == AudioAccessState.STARTING) {
+            return OperationResult.Success(CommandResult(CommandExecutionState.RUNNING, "START_ALREADY_IN_PROGRESS", null, metadata(sessionId, AudioAccessState.STARTING)))
+        }
+        if (current.sessionId == sessionId && current.state in setOf(AudioAccessState.STOPPING, AudioAccessState.STOPPED, AudioAccessState.EXPIRED, AudioAccessState.FAILED)) {
+            return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "SESSION_NOT_STARTABLE", "INVALID_STATE", metadata(sessionId, current.state)))
+        }
+        if (!manager.microphonePermissionGranted())
             manager.requestPermissionFromCommand(sessionId)
             return OperationResult.Success(
                 CommandResult(
@@ -79,6 +91,11 @@ class AudioStopCommandHandler(private val manager: AudioAccessManager) : Command
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
         val sessionId = parseAudioSessionId(command.payloadJson)
             ?: return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "INVALID_SESSION", "INVALID_SESSION"))
+
+        val expectedIdempotencyKey = "audio-session:$sessionId:$commandType"
+        if (command.idempotencyKey != expectedIdempotencyKey) {
+            return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "INVALID_IDEMPOTENCY", "INVALID_COMMAND"))
+        }
 
         return manager.stop(sessionId).fold(
             onSuccess = {
