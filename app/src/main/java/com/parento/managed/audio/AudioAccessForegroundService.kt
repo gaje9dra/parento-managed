@@ -74,7 +74,7 @@ class AudioAccessForegroundService : Service() {
             serviceScope.launch {
                 (application as ParentoApplication).deviceCommunicationSessionManager.reportAudioStarted(
                     requestedSession,
-                    "state=ACTIVE",
+                    "{\"state\":\"ACTIVE\",\"transport\":\"audio-media\"}",
                 )
             }
         }.onFailure {
