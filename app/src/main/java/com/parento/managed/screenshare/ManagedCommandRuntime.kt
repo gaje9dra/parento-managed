@@ -1,6 +1,7 @@
 package com.parento.managed.screenshare
 
-import com.parento.managed.audio.AudioAccessCommandHandler
+import com.parento.managed.audio.AudioStartCommandHandler
+import com.parento.managed.audio.AudioStopCommandHandler
 import com.parento.managed.audio.AudioAccessManager
 import com.parento.managed.command.AllowlistedCommandAuthorization
 import com.parento.managed.command.CommandProcessor
