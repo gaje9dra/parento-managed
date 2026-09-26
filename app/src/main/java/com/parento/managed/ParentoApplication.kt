@@ -35,8 +35,6 @@ import com.parento.managed.logging.LogLevel
 import com.parento.managed.logging.ManagedLogger
 import com.parento.managed.policy.DefaultPolicyEngine
 import com.parento.managed.screenshare.ManagedCommandRuntime
-import com.parento.managed.screenshare.ScreenCaptureState
-import com.parento.managed.screenshare.ScreenCaptureStateStore
 import com.parento.managed.screenshare.ScreenShareManager
 import com.parento.managed.monitoring.*
 import kotlinx.coroutines.CoroutineScope
@@ -136,12 +134,6 @@ class ParentoApplication : Application() {
         ManagedCommandRuntime(
             dao = LocalDatabaseProvider.get().managedCommandDao(),
             sessionManager = deviceCommunicationSessionManager,
-            expectedManagedDeviceId = {
-                val result = runCatching {
-                    kotlinx.coroutines.runBlocking { localStateRepository.getManagedDeviceId() }
-                }.getOrNull()
-                (result as? OperationResult.Success)?.value
-            },
             screenShareManager = screenShareManager,
         )
     }
