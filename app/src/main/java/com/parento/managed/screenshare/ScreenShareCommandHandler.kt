@@ -1,12 +1,27 @@
 package com.parento.managed.screenshare
 
+import com.parento.managed.command.CommandExecutionState
 import com.parento.managed.command.CommandHandler
 import com.parento.managed.command.CommandResult
-import com.parento.managed.command.CommandExecutionState
 import com.parento.managed.command.ManagedCommand
 import com.parento.managed.domain.OperationResult
 import org.json.JSONObject
 import java.util.UUID
+
+internal fun parseScreenSessionId(payloadJson: String): String? {
+    val match = SCREEN_SESSION_PAYLOAD_PATTERN.matchEntire(payloadJson.trim()) ?: return null
+    val id = match.groupValues[1]
+    return runCatching {
+        UUID.fromString(id)
+        id
+    }.getOrNull()
+}
+
+private val SCREEN_SESSION_PAYLOAD_PATTERN =
+    Regex(
+        """\{"screenSessionId":"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})"\}""",
+    )
+
 
 class ScreenShareStartCommandHandler(
     private val manager: ScreenShareManager,
@@ -15,7 +30,7 @@ class ScreenShareStartCommandHandler(
     override val supportedVersion: Int = 1
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
-        val sessionId = sessionId(command) ?: return OperationResult.Success(
+        val sessionId = screenSessionId(command) ?: return OperationResult.Success(
             CommandResult(CommandExecutionState.FAILED, "INVALID_SESSION", "INVALID_SESSION"),
         )
         val current = manager.state.value
@@ -30,22 +45,25 @@ class ScreenShareStartCommandHandler(
                     CommandExecutionState.RUNNING,
                     "AUTHORIZATION_REQUIRED",
                     null,
-                    JSONObject().put("sessionId", sessionId).put("state", ScreenCaptureState.AUTHORIZATION_REQUIRED.name).toString(),
+                    JSONObject()
+                        .put("screenSessionId", sessionId)
+                        .put("state", ScreenCaptureState.AUTHORIZATION_REQUIRED.name)
+                        .toString(),
                 ),
             )
         } else {
             OperationResult.Success(
-                CommandResult(CommandExecutionState.FAILED, "AUTHORIZATION_REQUIRED", "AUTHORIZATION_FAILURE"),
+                CommandResult(
+                    CommandExecutionState.FAILED,
+                    "AUTHORIZATION_REQUIRED",
+                    "AUTHORIZATION_FAILURE",
+                ),
             )
         }
     }
 
-    private fun sessionId(command: ManagedCommand): String? =
-        runCatching {
-            val id = JSONObject(command.payloadJson).getString("sessionId").trim()
-            UUID.fromString(id)
-            id
-        }.getOrNull()
+    private fun screenSessionId(command: ManagedCommand): String? =
+        parseScreenSessionId(command.payloadJson)
 }
 
 class ScreenShareStopCommandHandler(
@@ -55,21 +73,21 @@ class ScreenShareStopCommandHandler(
     override val supportedVersion: Int = 1
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
-        val sessionId = runCatching {
-            val id = JSONObject(command.payloadJson).getString("sessionId").trim()
-            UUID.fromString(id)
-            id
-        }.getOrNull()
+        val sessionId = parseScreenSessionId(command.payloadJson)
             ?: return OperationResult.Success(
                 CommandResult(CommandExecutionState.FAILED, "INVALID_SESSION", "INVALID_SESSION"),
             )
 
         return manager.stop(sessionId).fold(
             onSuccess = {
-                OperationResult.Success(CommandResult(CommandExecutionState.SUCCEEDED, "STOP_REQUESTED", null))
+                OperationResult.Success(
+                    CommandResult(CommandExecutionState.SUCCEEDED, "STOP_REQUESTED", null),
+                )
             },
             onFailure = {
-                OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "STOP_FAILED", "CAPTURE_STOP_FAILED"))
+                OperationResult.Success(
+                    CommandResult(CommandExecutionState.FAILED, "STOP_FAILED", "CAPTURE_STOP_FAILED"),
+                )
             },
         )
     }
