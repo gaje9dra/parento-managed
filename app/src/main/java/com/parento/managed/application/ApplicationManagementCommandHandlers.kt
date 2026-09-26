@@ -113,7 +113,13 @@ class ApplicationPolicyCommandHandler(
                         "INVALID_POLICY_VERSION",
                     ),
                 )
-            policyVersion == acceptedVersion && currentPolicyId == policyId ->
+            policyVersion == acceptedVersion && currentPolicyId == policyId -> {
+                localStateRepository.updateApplicationPolicySyncStatus(
+                    ApplicationPolicySyncStatus.PENDING,
+                )
+                localStateRepository.updateApplicationEnforcementStatus(
+                    ApplicationEnforcementStatus.PENDING,
+                )
                 OperationResult.Success(
                     CommandResult(
                         CommandExecutionState.SUCCEEDED,
@@ -126,6 +132,7 @@ class ApplicationPolicyCommandHandler(
                             .toString(),
                     ),
                 )
+            }
             else -> {
                 val stored = localStateRepository.updateApplicationPolicyReference(
                     policyId,
