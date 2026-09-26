@@ -169,8 +169,11 @@ class HttpsDeviceTransport(
                 if (status !in 200..299) return@withContext mapFailure(status)
                 var eventType: String? = null
                 val data = StringBuilder()
-                connection.inputStream.bufferedReader(Charsets.UTF_8).useLines { lines ->
-                    lines.forEach { line ->
+                connection.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+                    var eventType: String? = null
+                    val data = StringBuilder()
+                    while (true) {
+                        val line = reader.readLine() ?: break
                         when {
                             line.startsWith("event:") -> eventType = line.removePrefix("event:").trim()
                             line.startsWith("data:") -> data.append(line.removePrefix("data:").trim())
