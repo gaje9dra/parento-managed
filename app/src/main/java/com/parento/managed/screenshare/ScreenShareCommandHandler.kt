@@ -11,7 +11,7 @@ import java.util.UUID
 internal fun parseScreenSessionId(payloadJson: String): String? =
     runCatching {
         val payload = JSONObject(payloadJson)
-        if (payload.length() != 1 || !payload.has("screenSessionId")) return null
+        if (payload.length() != 1 || !payload.has("screenSessionId")) return@runCatching null
         val id = payload.getString("screenSessionId").trim()
         UUID.fromString(id)
         id
