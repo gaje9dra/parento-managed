@@ -10,13 +10,22 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import com.parento.managed.ParentoApplication
 import com.parento.managed.R
+import com.parento.managed.domain.OperationResult
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class AudioAccessForegroundService : Service() {
     private var capture: AndroidAudioCaptureController? = null
     private var transport: AudioTransport? = null
     private var sessionId: String? = null
+    private var reportedStarted = false
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -61,6 +70,13 @@ class AudioAccessForegroundService : Service() {
                 mediaTransport.send(buffer, length, timestamp)
             }?.getOrThrow()
             AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.ACTIVE, requestedSession, System.currentTimeMillis()))
+            reportedStarted = true
+            serviceScope.launch {
+                (application as ParentoApplication).deviceCommunicationSessionManager.reportAudioStarted(
+                    requestedSession,
+                    "state=ACTIVE",
+                )
+            }
         }.onFailure {
             mediaTransport.stop()
             capture?.stop()
@@ -72,6 +88,7 @@ class AudioAccessForegroundService : Service() {
 
     override fun onDestroy() {
         stopCapture()
+        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -81,6 +98,13 @@ class AudioAccessForegroundService : Service() {
         capture?.stop()
         transport?.stop()
         val current = AudioAccessRuntime.snapshot()
+        val stoppedSession = sessionId
+        if (reportedStarted && !stoppedSession.isNullOrBlank()) {
+            serviceScope.launch {
+                (application as ParentoApplication).deviceCommunicationSessionManager.reportAudioStopped(stoppedSession)
+            }
+        }
+        reportedStarted = false
         if (current.state != AudioAccessState.FAILED) {
             AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.STOPPED, current.sessionId, System.currentTimeMillis()))
         }
