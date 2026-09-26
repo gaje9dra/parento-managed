@@ -90,9 +90,8 @@ class ScreenShareManager(
         }
 
         publish(ScreenCaptureState.STOPPING, current.sessionId)
-        appContext.startService(
-            Intent(appContext, ScreenCaptureForegroundService::class.java)
-                .setAction(ScreenCaptureForegroundService.ACTION_STOP),
+        appContext.stopService(
+            Intent(appContext, ScreenCaptureForegroundService::class.java),
         )
         return Result.success(Unit)
     }
