@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
@@ -18,15 +17,25 @@ class ScreenCaptureForegroundService : Service() {
         super.onCreate()
         createNotificationChannel()
         controller = AndroidScreenCaptureController(this) { state, error ->
-            ScreenCaptureRuntime.publish(
-                ScreenCaptureSnapshot(
-                    state = state,
-                    sessionId = ScreenCaptureRuntime.snapshot().sessionId,
-                    updatedAtEpochMillis = System.currentTimeMillis(),
-                    errorCategory = error,
-                ),
-            )
-            if (state == ScreenCaptureState.STOPPED ||
+            val current = ScreenCaptureRuntime.snapshot()
+            val securityTerminal = current.state == ScreenCaptureState.REVOKED ||
+                current.state == ScreenCaptureState.EXPIRED
+            val cleanupCallback = state == ScreenCaptureState.STOPPING ||
+                state == ScreenCaptureState.STOPPED
+
+            if (!(securityTerminal && cleanupCallback)) {
+                ScreenCaptureRuntime.publish(
+                    ScreenCaptureSnapshot(
+                        state = state,
+                        sessionId = current.sessionId,
+                        updatedAtEpochMillis = System.currentTimeMillis(),
+                        errorCategory = error,
+                    ),
+                )
+            }
+
+            if (
+                state == ScreenCaptureState.STOPPED ||
                 state == ScreenCaptureState.FAILED ||
                 state == ScreenCaptureState.REVOKED ||
                 state == ScreenCaptureState.EXPIRED
@@ -53,12 +62,19 @@ class ScreenCaptureForegroundService : Service() {
             }
         }
         val sessionId = intent?.getStringExtra(EXTRA_SESSION_ID)
+        val current = ScreenCaptureRuntime.snapshot()
 
-        if (resultCode == Int.MIN_VALUE || resultData == null || sessionId.isNullOrBlank()) {
+        if (
+            resultCode == Int.MIN_VALUE ||
+            resultData == null ||
+            !isUuid(sessionId) ||
+            current.sessionId != sessionId ||
+            current.state != ScreenCaptureState.STARTING
+        ) {
             ScreenCaptureRuntime.publish(
                 ScreenCaptureSnapshot(
                     ScreenCaptureState.FAILED,
-                    sessionId,
+                    null,
                     System.currentTimeMillis(),
                     "INVALID_AUTHORIZATION_RESULT",
                 ),
@@ -117,6 +133,9 @@ class ScreenCaptureForegroundService : Service() {
             )
         }
     }
+
+    private fun isUuid(value: String?): Boolean =
+        !value.isNullOrBlank() && runCatching { java.util.UUID.fromString(value) }.isSuccess
 
     companion object {
         const val ACTION_START = "com.parento.managed.action.START_SCREEN_SHARE"
