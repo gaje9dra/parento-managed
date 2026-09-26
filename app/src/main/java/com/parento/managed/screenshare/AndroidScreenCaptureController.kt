@@ -1,6 +1,8 @@
 package com.parento.managed.screenshare
 
 import android.content.Context
+import android.content.ComponentCallbacks
+import android.content.Configuration
 import android.content.Intent
 import android.hardware.display.DisplayManager
 import android.media.ImageReader
@@ -22,6 +24,8 @@ class AndroidScreenCaptureController(
     private var imageReader: ImageReader? = null
     private var sessionId: String? = null
     private var started = false
+    private var projectionCallback: MediaProjection.Callback? = null
+    private var componentCallbacks: ComponentCallbacks? = null
 
     override fun start(resultCode: Int, resultData: Intent, sessionId: String): Result<Unit> {
         if (started) return Result.failure(IllegalStateException("Screen capture is already active."))
@@ -56,8 +60,7 @@ class AndroidScreenCaptureController(
                 null,
             )
 
-            mediaProjection.registerCallback(
-                object : MediaProjection.Callback() {
+            val callback = object : MediaProjection.Callback() {
                     override fun onStop() {
                         releaseResources()
                         onState(ScreenCaptureState.STOPPED, null)
@@ -70,9 +73,19 @@ class AndroidScreenCaptureController(
                             density,
                         )
                     }
-                },
-                null,
-            )
+                }
+            projectionCallback = callback
+            mediaProjection.registerCallback(callback, null)
+
+            val configurationCallbacks = object : ComponentCallbacks {
+                override fun onConfigurationChanged(newConfig: Configuration) {
+                    resizeToCurrentDisplay(density)
+                }
+
+                override fun onLowMemory() = Unit
+            }
+            componentCallbacks = configurationCallbacks
+            context.registerComponentCallbacks(configurationCallbacks)
 
             val displayManager = context.getSystemService(DisplayManager::class.java)
                 ?: error("DisplayManager is unavailable.")
@@ -106,6 +119,16 @@ class AndroidScreenCaptureController(
         onState(ScreenCaptureState.STOPPED, null)
     }
 
+    private fun resizeToCurrentDisplay(density: Int) {
+        if (!started) return
+        val metrics = displayMetrics()
+        virtualDisplay?.resize(
+            metrics.widthPixels.coerceAtLeast(1),
+            metrics.heightPixels.coerceAtLeast(1),
+            density,
+        )
+    }
+
     private fun displayMetrics(): DisplayMetrics {
         val metrics = DisplayMetrics()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -121,13 +144,23 @@ class AndroidScreenCaptureController(
 
     private fun releaseResources() {
         started = false
+        componentCallbacks?.let {
+            runCatching { context.unregisterComponentCallbacks(it) }
+        }
+        componentCallbacks = null
         virtualDisplay?.release()
         virtualDisplay = null
         imageReader?.setOnImageAvailableListener(null, null)
         imageReader?.close()
         imageReader = null
-        projection?.stop()
+
+        val activeProjection = projection
         projection = null
+        projectionCallback?.let { callback ->
+            runCatching { activeProjection?.unregisterCallback(callback) }
+        }
+        projectionCallback = null
+        activeProjection?.stop()
         sessionId = null
     }
 }
