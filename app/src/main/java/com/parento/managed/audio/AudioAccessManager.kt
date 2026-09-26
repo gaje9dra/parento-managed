@@ -18,6 +18,8 @@ class AudioAccessManager(context: Context) {
     val state: StateFlow<AudioAccessSnapshot>
         get() = AudioAccessRuntime.flow()
 
+    fun mediaTransportAvailable(): Boolean = false
+
     fun microphonePermissionGranted(): Boolean =
         ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
