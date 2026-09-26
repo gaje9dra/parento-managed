@@ -6,11 +6,16 @@ import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
 import com.parento.managed.domain.canTransitionTo
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class DeviceCommunicationSessionManager(
     private val localStateRepository: LocalStateRepository,
@@ -19,6 +24,7 @@ class DeviceCommunicationSessionManager(
     private val transport: DeviceTransport,
 ) {
     private val mutex = Mutex()
+    private var commandStreamJob: Job? = null
     private val _state = MutableStateFlow(ConnectionState.UNKNOWN)
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
 
@@ -121,6 +127,31 @@ class DeviceCommunicationSessionManager(
         }
     }
 
+    fun startCommandStream(
+        scope: CoroutineScope,
+        onCommand: suspend (TransportCommand) -> Unit,
+    ) {
+        if (commandStreamJob?.isActive == true) return
+        commandStreamJob = scope.launch {
+            while (isActive) {
+                val token = currentSessionToken()
+                if (token == null) {
+                    delay(1_000)
+                    continue
+                }
+                when (transport.streamCommands(token, onCommand)) {
+                    is OperationResult.Success -> Unit
+                    is OperationResult.Failure -> delay(1_000)
+                }
+            }
+        }
+    }
+
+    fun stopCommandStream() {
+        commandStreamJob?.cancel()
+        commandStreamJob = null
+    }
+
     suspend fun heartbeat(): OperationResult<ConnectionState> = mutex.withLock {
         val session = when (val result = sessionStore.read()) {
             is OperationResult.Failure -> return@withLock result
@@ -185,6 +216,8 @@ class DeviceCommunicationSessionManager(
     }
 
     suspend fun disconnect(): OperationResult<ConnectionState> = mutex.withLock {
+        commandStreamJob?.cancel()
+        commandStreamJob = null
         transition(ConnectionState.DISCONNECTING)
         val session = when (val result = sessionStore.read()) {
             is OperationResult.Failure -> {
