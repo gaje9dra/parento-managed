@@ -32,19 +32,50 @@ class ScreenShareManager(
         return requestAuthorizationInternal(sessionId)
     }
 
-    private fun requestAuthorizationInternal(sessionId: String): Result<Intent> {
-        if (!isUuid(sessionId)) return Result.failure(IllegalArgumentException("Invalid screen-sharing session."))
+    suspend fun enforceAuthorization() {
         val current = state.value
-        if (current.state == ScreenCaptureState.ACTIVE || current.state == ScreenCaptureState.STARTING) {
-            if (current.sessionId == sessionId) return Result.success(Intent())
-            return Result.failure(IllegalStateException("Another screen-sharing session is active."))
+        if (
+            current.state in ACTIVE_STATES &&
+            current.sessionId != null &&
+            !isDeviceAuthorized()
+        ) {
+            terminateWithoutReauthorization(
+                state = ScreenCaptureState.REVOKED,
+                reason = "AUTHORIZATION_LOST",
+            )
+        }
+    }
+
+    fun handleBackendSessionExpired(sessionId: String): Result<Unit> {
+        val current = state.value
+        if (current.sessionId != null && current.sessionId != sessionId) {
+            return Result.failure(IllegalArgumentException("Screen-sharing session mismatch."))
+        }
+        if (current.state !in ACTIVE_STATES) return Result.success(Unit)
+        terminateWithoutReauthorization(
+            state = ScreenCaptureState.EXPIRED,
+            reason = "BACKEND_SESSION_EXPIRED",
+        )
+        return Result.success(Unit)
+    }
+
+    private fun requestAuthorizationInternal(sessionId: String): Result<Intent> {
+        if (!isUuid(sessionId)) {
+            return Result.failure(IllegalArgumentException("Invalid screen-sharing session."))
         }
 
-        val manager = appContext.getSystemService(MediaProjectionManager::class.java)
-            ?: return Result.failure(IllegalStateException("MediaProjection is unavailable."))
+        val current = state.value
+        if (current.state in ACTIVE_STATES) {
+            if (current.sessionId == sessionId && current.state == ScreenCaptureState.AUTHORIZATION_REQUIRED) {
+                return createAuthorizationIntent()
+            }
+            return Result.failure(IllegalStateException("Another screen-sharing session is active or pending."))
+        }
 
-        publish(ScreenCaptureState.AUTHORIZATION_REQUIRED, sessionId)
-        return Result.success(manager.createScreenCaptureIntent())
+        return createAuthorizationIntent().map {
+            publish(ScreenCaptureState.AUTHORIZATION_REQUIRED, sessionId)
+            it
+        }
     }
 
     fun requestAuthorizationFromCommand(sessionId: String): Result<Unit> {
@@ -54,13 +85,22 @@ class ScreenShareManager(
         }
     }
 
-    fun startAfterConsent(activity: Activity, resultCode: Int, resultData: Intent, sessionId: String): Result<Unit> {
-        if (!isUuid(sessionId)) return Result.failure(IllegalArgumentException("Invalid screen-sharing session."))
+    fun startAfterConsent(
+        activity: Activity,
+        resultCode: Int,
+        resultData: Intent,
+        sessionId: String,
+    ): Result<Unit> {
+        if (!isUuid(sessionId)) {
+            return Result.failure(IllegalArgumentException("Invalid screen-sharing session."))
+        }
         if (resultCode != Activity.RESULT_OK) {
             publish(ScreenCaptureState.FAILED, sessionId, "AUTHORIZATION_DENIED")
             return Result.failure(SecurityException("MediaProjection authorization was not granted."))
         }
-        if (state.value.sessionId != sessionId || state.value.state != ScreenCaptureState.AUTHORIZATION_REQUIRED) {
+
+        val current = state.value
+        if (current.sessionId != sessionId || current.state != ScreenCaptureState.AUTHORIZATION_REQUIRED) {
             return Result.failure(IllegalStateException("No matching screen-sharing authorization request exists."))
         }
 
@@ -88,6 +128,10 @@ class ScreenShareManager(
         if (sessionId != null && current.sessionId != null && sessionId != current.sessionId) {
             return Result.failure(IllegalArgumentException("Screen-sharing session mismatch."))
         }
+        if (current.state == ScreenCaptureState.REVOKED || current.state == ScreenCaptureState.EXPIRED) {
+            appContext.stopService(Intent(appContext, ScreenCaptureForegroundService::class.java))
+            return Result.success(Unit)
+        }
         if (current.state == ScreenCaptureState.STOPPED || current.state == ScreenCaptureState.UNAVAILABLE) {
             stateStore.clearActiveSession()
             ScreenCaptureRuntime.publish(stateStore.read())
@@ -95,18 +139,27 @@ class ScreenShareManager(
         }
 
         publish(ScreenCaptureState.STOPPING, current.sessionId)
-        appContext.stopService(
-            Intent(appContext, ScreenCaptureForegroundService::class.java),
-        )
+        appContext.stopService(Intent(appContext, ScreenCaptureForegroundService::class.java))
         return Result.success(Unit)
     }
 
     fun publish(state: ScreenCaptureState, sessionId: String?, error: String? = null) {
         val current = ScreenCaptureRuntime.snapshot()
+
+        if (
+            current.state in SECURITY_TERMINAL_STATES &&
+            state in setOf(
+                ScreenCaptureState.STOPPING,
+                ScreenCaptureState.STOPPED,
+            )
+        ) {
+            return
+        }
+
         if (!ScreenCaptureStateMachine.canTransition(current.state, state)) {
             val invalid = ScreenCaptureSnapshot(
                 state = ScreenCaptureState.FAILED,
-                sessionId = sessionId ?: current.sessionId,
+                sessionId = null,
                 updatedAtEpochMillis = System.currentTimeMillis(),
                 errorCategory = "INVALID_STATE_TRANSITION",
             )
@@ -114,6 +167,7 @@ class ScreenShareManager(
             ScreenCaptureRuntime.publish(invalid)
             return
         }
+
         val snapshot = ScreenCaptureSnapshot(
             state = state,
             sessionId = sessionId,
@@ -122,6 +176,27 @@ class ScreenShareManager(
         )
         stateStore.write(snapshot)
         ScreenCaptureRuntime.publish(snapshot)
+    }
+
+    private fun terminateWithoutReauthorization(
+        state: ScreenCaptureState,
+        reason: String,
+    ) {
+        val current = ScreenCaptureRuntime.snapshot()
+        if (current.state !in ACTIVE_STATES) return
+
+        publish(
+            state = state,
+            sessionId = null,
+            error = reason,
+        )
+        appContext.stopService(Intent(appContext, ScreenCaptureForegroundService::class.java))
+    }
+
+    private fun createAuthorizationIntent(): Result<Intent> {
+        val manager = appContext.getSystemService(MediaProjectionManager::class.java)
+            ?: return Result.failure(IllegalStateException("MediaProjection is unavailable."))
+        return Result.success(manager.createScreenCaptureIntent())
     }
 
     private fun postAuthorizationNotification(sessionId: String) {
@@ -168,10 +243,11 @@ class ScreenShareManager(
             ScreenCaptureState.AUTHORIZED,
             -> ScreenCaptureSnapshot(
                 ScreenCaptureState.FAILED,
-                snapshot.sessionId,
+                null,
                 System.currentTimeMillis(),
                 "PROCESS_RESTARTED",
             )
+
             else -> snapshot
         }
     }
@@ -180,6 +256,18 @@ class ScreenShareManager(
         runCatching { UUID.fromString(value) }.isSuccess
 
     private companion object {
+        val ACTIVE_STATES = setOf(
+            ScreenCaptureState.REQUESTED,
+            ScreenCaptureState.AUTHORIZATION_REQUIRED,
+            ScreenCaptureState.AUTHORIZED,
+            ScreenCaptureState.STARTING,
+            ScreenCaptureState.ACTIVE,
+            ScreenCaptureState.STOPPING,
+        )
+        val SECURITY_TERMINAL_STATES = setOf(
+            ScreenCaptureState.REVOKED,
+            ScreenCaptureState.EXPIRED,
+        )
         const val AUTHORIZATION_CHANNEL_ID = "parento_screen_share_authorization"
         const val AUTHORIZATION_NOTIFICATION_ID = 9200
     }
