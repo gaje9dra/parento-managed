@@ -215,6 +215,19 @@ class DeviceCommunicationSessionManager(
         result
     }
 
+    suspend fun reportAudioStarted(
+        audioSessionId: String,
+        transportState: String? = null,
+    ): OperationResult<Unit> {
+        val token = currentSessionToken() ?: return OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+        return transport.reportAudioStarted(token, audioSessionId, transportState)
+    }
+
+    suspend fun reportAudioStopped(audioSessionId: String): OperationResult<Unit> {
+        val token = currentSessionToken() ?: return OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+        return transport.reportAudioStopped(token, audioSessionId)
+    }
+
     suspend fun disconnect(): OperationResult<ConnectionState> = mutex.withLock {
         commandStreamJob?.cancel()
         commandStreamJob = null
