@@ -39,6 +39,16 @@ class AudioStartCommandHandler(private val manager: AudioAccessManager) : Comman
                 ),
             )
         }
+        if (!manager.mediaTransportAvailable()) {
+            return OperationResult.Success(
+                CommandResult(
+                    CommandExecutionState.FAILED,
+                    "AUDIO_TRANSPORT_UNAVAILABLE",
+                    "TRANSPORT_UNAVAILABLE",
+                    metadata(sessionId, AudioAccessState.FAILED),
+                ),
+            )
+        }
         return manager.startFromAuthorizedCommand(sessionId).fold(
             onSuccess = {
                 OperationResult.Success(
