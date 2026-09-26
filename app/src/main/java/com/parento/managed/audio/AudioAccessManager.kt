@@ -37,7 +37,11 @@ class AudioAccessManager(context: Context) {
             return Result.failure(SecurityException("Microphone permission is required."))
         }
         val current = state.value
-        if (current.state == AudioAccessState.ACTIVE && current.sessionId == sessionId) return Result.success(Unit)
+        if (current.sessionId == sessionId && current.state == AudioAccessState.ACTIVE) return Result.success(Unit)
+        if (current.sessionId == sessionId && current.state == AudioAccessState.STARTING) return Result.success(Unit)
+        if (current.sessionId == sessionId && current.state in setOf(AudioAccessState.STOPPING, AudioAccessState.STOPPED, AudioAccessState.EXPIRED, AudioAccessState.FAILED)) {
+            return Result.failure(IllegalStateException("Audio session is no longer startable."))
+        }
         if (current.state in setOf(AudioAccessState.STARTING, AudioAccessState.ACTIVE, AudioAccessState.STOPPING) && current.sessionId != sessionId) {
             return Result.failure(IllegalStateException("Another audio session is active."))
         }
@@ -72,7 +76,7 @@ class AudioAccessManager(context: Context) {
         val current = state.value
         if (current.sessionId != null && current.sessionId != sessionId) return Result.failure(IllegalArgumentException("Audio session mismatch."))
         stop(sessionId)
-        AudioAccessRuntime.publish(snapshot(AudioAccessState.FAILED, null, "BACKEND_SESSION_EXPIRED"))
+        AudioAccessRuntime.publish(snapshot(AudioAccessState.EXPIRED, null, "BACKEND_SESSION_EXPIRED"))
         return Result.success(Unit)
     }
 
