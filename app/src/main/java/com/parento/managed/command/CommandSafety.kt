@@ -19,6 +19,19 @@ class DefaultCommandValidator(
         if (command.correlationId?.length?.let { it > 128 } == true) return reject()
         if (command.idempotencyKey?.length?.let { it > 128 } == true) return reject()
         runCatching { JSONObject(command.payloadJson) }.getOrElse { return reject() }
+
+        if (command.commandType == "START_AUDIO_ACCESS" || command.commandType == "STOP_AUDIO_ACCESS") {
+            val audioSessionId = runCatching {
+                val payload = JSONObject(command.payloadJson)
+                if (payload.length() != 1 || !payload.has("audioSessionId")) return@runCatching null
+                val value = payload.getString("audioSessionId")
+                if (!isUuid(value)) null else value
+            }.getOrNull() ?: return reject()
+
+            val expectedKey = "audio-session:$audioSessionId:" + command.commandType
+            if (command.idempotencyKey != expectedKey) return reject()
+        }
+
         return OperationResult.Success(Unit)
     }
 
