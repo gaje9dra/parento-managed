@@ -167,8 +167,6 @@ class HttpsDeviceTransport(
                 connection.setRequestProperty("Authorization", "Bearer $sessionToken")
                 val status = connection.responseCode
                 if (status !in 200..299) return@withContext mapFailure(status)
-                var eventType: String? = null
-                val data = StringBuilder()
                 connection.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
                     var eventType: String? = null
                     val data = StringBuilder()
