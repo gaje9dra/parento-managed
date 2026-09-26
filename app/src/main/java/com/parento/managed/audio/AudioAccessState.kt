@@ -7,6 +7,7 @@ enum class AudioAccessState {
     ACTIVE,
     STOPPING,
     STOPPED,
+    EXPIRED,
     FAILED,
 }
 
