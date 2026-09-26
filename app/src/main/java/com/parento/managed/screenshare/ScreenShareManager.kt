@@ -1,6 +1,9 @@
 package com.parento.managed.screenshare
 
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
@@ -41,7 +44,10 @@ class ScreenShareManager(
     }
 
     suspend fun requestAuthorizationFromCommand(sessionId: String): Result<Unit> {
-        return requestAuthorization(sessionId).map { Unit }
+        return requestAuthorization(sessionId).map {
+            postAuthorizationNotification(sessionId)
+            Unit
+        }
     }
 
     fun startAfterConsent(activity: Activity, resultCode: Int, resultData: Intent, sessionId: String): Result<Unit> {
@@ -102,6 +108,42 @@ class ScreenShareManager(
         ScreenCaptureRuntime.publish(snapshot)
     }
 
+    private fun postAuthorizationNotification(sessionId: String) {
+        val manager = appContext.getSystemService(NotificationManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    AUTHORIZATION_CHANNEL_ID,
+                    appContext.getString(R.string.screen_share_notification_channel),
+                    NotificationManager.IMPORTANCE_HIGH,
+                ),
+            )
+        }
+        val intent = Intent(appContext, ScreenShareActivity::class.java).apply {
+            action = ScreenShareActivity.ACTION_AUTHORIZE
+            putExtra(ScreenShareActivity.EXTRA_SESSION_ID, sessionId)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            appContext,
+            AUTHORIZATION_NOTIFICATION_ID,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        runCatching {
+            manager.notify(
+                AUTHORIZATION_NOTIFICATION_ID,
+                android.app.Notification.Builder(appContext, AUTHORIZATION_CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_menu_view)
+                    .setContentTitle(appContext.getString(R.string.screen_share_authorization_title))
+                    .setContentText(appContext.getString(R.string.screen_share_authorization_message))
+                    .setContentIntent(pendingIntent)
+                    .setAutoCancel(true)
+                    .build(),
+            )
+        }
+    }
+
     private fun normalizeAfterProcessStart(snapshot: ScreenCaptureSnapshot): ScreenCaptureSnapshot {
         return when (snapshot.state) {
             ScreenCaptureState.STARTING,
@@ -120,4 +162,9 @@ class ScreenShareManager(
 
     private fun isUuid(value: String): Boolean =
         runCatching { UUID.fromString(value) }.isSuccess
+
+    private companion object {
+        const val AUTHORIZATION_CHANNEL_ID = "parento_screen_share_authorization"
+        const val AUTHORIZATION_NOTIFICATION_ID = 9200
+    }
 }
