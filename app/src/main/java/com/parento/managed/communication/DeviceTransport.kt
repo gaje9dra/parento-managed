@@ -52,6 +52,22 @@ interface DeviceTransport {
         observedAt: String,
     ): OperationResult<Unit>
     suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?>
+
+    suspend fun streamCommands(
+        sessionToken: String,
+        onCommand: suspend (TransportCommand) -> Unit,
+    ): OperationResult<Unit> = OperationResult.Failure(ManagedError.NETWORK_FAILURE)
+
+    suspend fun reportAudioStarted(
+        sessionToken: String,
+        audioSessionId: String,
+        transportState: String? = null,
+    ): OperationResult<Unit> = OperationResult.Failure(ManagedError.INVALID_STATE)
+
+    suspend fun reportAudioStopped(
+        sessionToken: String,
+        audioSessionId: String,
+    ): OperationResult<Unit> = OperationResult.Failure(ManagedError.INVALID_STATE)
 }
 
 class HttpsDeviceTransport(
@@ -130,6 +146,85 @@ class HttpsDeviceTransport(
 
     override suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?> =
         OperationResult.Success(null)
+
+    override suspend fun streamCommands(
+        sessionToken: String,
+        onCommand: suspend (TransportCommand) -> Unit,
+    ): OperationResult<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val endpoint = URL(baseUrl.trimEnd('/') + "/api/v1/device/stream")
+            if (requireHttps && endpoint.protocol != "https") {
+                return@withContext OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
+            }
+            val connection = endpoint.openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 0
+                connection.useCaches = false
+                connection.setRequestProperty("Accept", "text/event-stream")
+                connection.setRequestProperty("Cache-Control", "no-cache")
+                connection.setRequestProperty("Authorization", "Bearer $sessionToken")
+                val status = connection.responseCode
+                if (status !in 200..299) return@withContext mapFailure(status)
+                var eventType: String? = null
+                val data = StringBuilder()
+                connection.inputStream.bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    lines.forEach { line ->
+                        when {
+                            line.startsWith("event:") -> eventType = line.removePrefix("event:").trim()
+                            line.startsWith("data:") -> data.append(line.removePrefix("data:").trim())
+                            line.isEmpty() -> {
+                                if (eventType == "command" && data.isNotEmpty()) {
+                                    val json = JSONObject(data.toString())
+                                    val command = TransportCommand(
+                                        commandId = json.getString("commandId"),
+                                        managedDeviceId = json.getString("managedDeviceId"),
+                                        type = json.getString("type"),
+                                        version = json.getInt("version"),
+                                        payload = json.getJSONObject("payload").toString(),
+                                        correlationId = json.optString("correlationId").ifBlank { null },
+                                        idempotencyKey = json.optString("idempotencyKey").ifBlank { null },
+                                        createdAtEpochMillis = java.time.Instant.parse(json.getString("createdAt")).toEpochMilli(),
+                                        expiresAtEpochMillis = java.time.Instant.parse(json.getString("expiresAt")).toEpochMilli(),
+                                    )
+                                    onCommand(command)
+                                }
+                                eventType = null
+                                data.clear()
+                            }
+                        }
+                    }
+                }
+                OperationResult.Failure(ManagedError.NETWORK_FAILURE)
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrElse { OperationResult.Failure(ManagedError.NETWORK_FAILURE) }
+    }
+
+    override suspend fun reportAudioStarted(
+        sessionToken: String,
+        audioSessionId: String,
+        transportState: String?,
+    ): OperationResult<Unit> = request(
+        "/api/v1/device/audio-sessions/$audioSessionId/started",
+        "POST",
+        sessionToken,
+        JSONObject().apply {
+            if (transportState != null) put("transportState", JSONObject(transportState))
+        },
+    ) { Unit }
+
+    override suspend fun reportAudioStopped(
+        sessionToken: String,
+        audioSessionId: String,
+    ): OperationResult<Unit> = request(
+        "/api/v1/device/audio-sessions/$audioSessionId/stopped",
+        "POST",
+        sessionToken,
+        null,
+    ) { Unit }
 
     private suspend fun <T> request(
         path: String,
