@@ -148,6 +148,8 @@ class ParentoApplication : Application() {
             dao = LocalDatabaseProvider.get().managedCommandDao(),
             sessionManager = deviceCommunicationSessionManager,
             screenShareManager = screenShareManager,
+            applicationInventorySync = applicationInventorySync,
+            localStateRepository = localStateRepository,
         )
     }
 
