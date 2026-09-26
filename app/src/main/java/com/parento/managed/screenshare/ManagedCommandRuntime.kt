@@ -13,21 +13,11 @@ import com.parento.managed.domain.OperationResult
 class ManagedCommandRuntime(
     private val dao: ManagedCommandDao,
     private val sessionManager: DeviceCommunicationSessionManager,
-    private val expectedManagedDeviceId: () -> String?,
     screenShareManager: ScreenShareManager,
 ) {
     private val handlers = mapOf(
         "START_SCREEN_SHARE" to ScreenShareStartCommandHandler(screenShareManager),
         "STOP_SCREEN_SHARE" to ScreenShareStopCommandHandler(screenShareManager),
-    )
-
-    private val processor = CommandProcessor(
-        dao = dao,
-        transport = sessionManager.transportBoundary(),
-        sessionTokenProvider = { sessionManager.currentSessionToken() },
-        validator = DefaultCommandValidator(expectedManagedDeviceId),
-        authorization = AllowlistedCommandAuthorization(handlers),
-        handlers = handlers,
     )
 
     suspend fun processNextCommand(): OperationResult<CommandResult?> =
@@ -36,8 +26,16 @@ class ManagedCommandRuntime(
             is OperationResult.Success -> received.value?.let { process(it) } ?: OperationResult.Success(null)
         }
 
-    suspend fun process(command: TransportCommand): OperationResult<CommandResult> =
-        processor.process(
+    suspend fun process(command: TransportCommand): OperationResult<CommandResult> {
+        val processor = CommandProcessor(
+            dao = dao,
+            transport = sessionManager.transportBoundary(),
+            sessionTokenProvider = { sessionManager.currentSessionToken() },
+            validator = DefaultCommandValidator { sessionManager.currentManagedDeviceId() },
+            authorization = AllowlistedCommandAuthorization(handlers),
+            handlers = handlers,
+        )
+        return processor.process(
             ManagedCommand(
                 commandId = command.commandId,
                 managedDeviceId = command.managedDeviceId,
@@ -50,4 +48,5 @@ class ManagedCommandRuntime(
                 idempotencyKey = command.idempotencyKey,
             ),
         )
+    }
 }
