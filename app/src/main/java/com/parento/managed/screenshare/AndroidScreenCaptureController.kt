@@ -2,7 +2,7 @@ package com.parento.managed.screenshare
 
 import android.content.ComponentCallbacks
 import android.content.Context
-import android.content.Configuration
+import android.content.res.Configuration
 import android.content.Intent
 import android.hardware.display.DisplayManager
 import android.media.ImageReader
