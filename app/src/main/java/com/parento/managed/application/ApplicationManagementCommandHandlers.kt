@@ -91,9 +91,7 @@ class ApplicationPolicyCommandHandler(
         val currentPolicyId = current.desiredApplicationPolicyId
         when {
             policyVersion < acceptedVersion -> {
-                localStateRepository.updateApplicationPolicyReference(
-                    policyId,
-                    policyVersion,
+                localStateRepository.updateApplicationPolicySyncStatus(
                     ApplicationPolicySyncStatus.STALE,
                 )
                 localStateRepository.updateApplicationEnforcementStatus(
