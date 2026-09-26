@@ -77,7 +77,7 @@ The audio foreground service is `exported=false`. No external activity, service,
 
 No accessibility API, root operation, hidden Android API, OEM workaround, or Device Owner permission bypass is used.
 
-The foreground-service implementation follows Android's microphone FGS requirements: the app must have `RECORD_AUDIO` before the microphone service is started, and the service declares the microphone FGS type. citeturn0search0turn0search2
+The foreground-service implementation follows Android's microphone FGS requirements: the app must have `RECORD_AUDIO` before the microphone service is started, and the service declares the microphone FGS type.
 
 ## Manual test plan
 
