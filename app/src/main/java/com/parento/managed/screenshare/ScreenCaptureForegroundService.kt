@@ -72,14 +72,6 @@ class ScreenCaptureForegroundService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        ScreenCaptureRuntime.publish(
-            ScreenCaptureSnapshot(
-                ScreenCaptureState.AUTHORIZED,
-                sessionId,
-                System.currentTimeMillis(),
-            ),
-        )
-
         controller?.start(resultCode, resultData, sessionId)
             ?.onFailure {
                 stopForeground(STOP_FOREGROUND_REMOVE)
