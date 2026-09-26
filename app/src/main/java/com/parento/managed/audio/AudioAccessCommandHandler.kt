@@ -9,11 +9,13 @@ import org.json.JSONObject
 import java.util.UUID
 
 internal fun parseAudioSessionId(payloadJson: String): String? {
-    val json = runCatching { JSONObject(payloadJson.trim()) }.getOrNull() ?: return null
-    if (json.length() != 1 || !json.has("audioSessionId")) return null
-    val value = runCatching { json.getString("audioSessionId") }.getOrNull() ?: return null
-    return runCatching { UUID.fromString(value); value }.getOrNull()
+    val match = AUDIO_SESSION_PAYLOAD_PATTERN.matchEntire(payloadJson.trim()) ?: return null
+    return runCatching { UUID.fromString(match.groupValues[1]); match.groupValues[1] }.getOrNull()
 }
+
+private val AUDIO_SESSION_PAYLOAD_PATTERN = Regex(
+    """^\{"audioSessionId":"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})"\}$""",
+)
 
 class AudioStartCommandHandler(private val manager: AudioAccessManager) : CommandHandler {
     override val commandType = "START_AUDIO_ACCESS"
