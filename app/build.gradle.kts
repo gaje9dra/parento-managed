@@ -18,7 +18,7 @@ android {
         buildConfigField("boolean", "PARENTO_FEATURE_ENROLLMENT", "true")
         buildConfigField("boolean", "PARENTO_FEATURE_REALTIME", "false")
         buildConfigField("boolean", "PARENTO_FEATURE_LOCATION", "true")
-        buildConfigField("boolean", "PARENTO_FEATURE_SCREEN_SHARING", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_SCREEN_SHARING", "true")
         buildConfigField("boolean", "PARENTO_FEATURE_AUDIO", "false")
         buildConfigField("boolean", "PARENTO_FEATURE_APPLICATION_MANAGEMENT", "false")
         buildConfigField("boolean", "PARENTO_FEATURE_WEBSITE_FILTERING", "false")
