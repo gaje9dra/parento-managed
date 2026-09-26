@@ -41,4 +41,10 @@
     <string name="screen_share_authorization_title">Screen-sharing request</string>
     <string name="screen_share_authorization_message">Review and authorize the requested screen-sharing session.</string>
     <string name="location_error">Location capability error</string>
+    <string name="audio_permission_channel">Microphone access</string>
+    <string name="audio_permission_title">Microphone permission required</string>
+    <string name="audio_permission_message">Open Parento Managed and allow microphone access to continue an authorized audio session.</string>
+    <string name="audio_access_notification_channel">Authorized audio access</string>
+    <string name="audio_access_notification_title">Authorized microphone access is active</string>
+    <string name="audio_access_notification_active">Parento is using the microphone for an authorized live session.</string>
 </resources>
