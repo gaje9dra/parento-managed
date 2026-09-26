@@ -43,6 +43,7 @@
     <string name="location_error">Location capability error</string>
     <string name="audio_permission_channel">Microphone access</string>
     <string name="audio_permission_title">Microphone permission required</string>
+    <string name="enable_microphone">Allow microphone</string>
     <string name="audio_permission_message">Open Parento Managed and allow microphone access to continue an authorized audio session.</string>
     <string name="audio_access_notification_channel">Authorized audio access</string>
     <string name="audio_access_notification_title">Authorized microphone access is active</string>
