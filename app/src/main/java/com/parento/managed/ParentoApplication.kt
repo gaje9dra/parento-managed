@@ -42,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -122,10 +123,18 @@ class ParentoApplication : Application() {
         ScreenShareManager(this) {
             val enrollment = localStateRepository.getEnrollmentState()
             val managedDeviceId = localStateRepository.getManagedDeviceId()
+            val management = _managementInitialization.value
+            val managedByAndroid = management is OperationResult.Success &&
+                management.value.managementDetectionError == null &&
+                (
+                    management.value.managementMode == com.parento.managed.device.ManagementMode.DEVICE_OWNER ||
+                        management.value.managementMode == com.parento.managed.device.ManagementMode.PROFILE_OWNER
+                )
             enrollment is OperationResult.Success &&
                 enrollment.value == com.parento.managed.domain.EnrollmentState.ENROLLED &&
                 managedDeviceId is OperationResult.Success &&
                 !managedDeviceId.value.isNullOrBlank() &&
+                managedByAndroid &&
                 connectionState.value == com.parento.managed.domain.ConnectionState.CONNECTED
         }
     }
@@ -199,6 +208,11 @@ class ParentoApplication : Application() {
         )
 
         screenShareManager
+        applicationScope.launch {
+            localStateRepository.observe().collect {
+                screenShareManager.enforceAuthorization()
+            }
+        }
         initialize()
         logger.log(LogLevel.INFO, "Parento Managed startup orchestration started.")
     }
