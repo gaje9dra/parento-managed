@@ -95,7 +95,10 @@ class ScreenCaptureForegroundService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        controller?.start(resultCode, resultData, sessionId)
+        val validatedSessionId = sessionId
+            ?: return START_NOT_STICKY
+
+        controller?.start(resultCode, resultData, validatedSessionId)
             ?.onFailure {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
