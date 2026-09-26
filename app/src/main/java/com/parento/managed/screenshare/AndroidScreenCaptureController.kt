@@ -1,7 +1,7 @@
 package com.parento.managed.screenshare
 
-import android.content.Context
 import android.content.ComponentCallbacks
+import android.content.Context
 import android.content.Configuration
 import android.content.Intent
 import android.hardware.display.DisplayManager
@@ -10,7 +10,6 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.util.DisplayMetrics
-import android.view.Surface
 import android.view.WindowManager
 
 class AndroidScreenCaptureController(
