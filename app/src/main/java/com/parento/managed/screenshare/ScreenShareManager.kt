@@ -28,8 +28,12 @@ class ScreenShareManager(
         get() = ScreenCaptureRuntime.flow()
 
     suspend fun requestAuthorization(sessionId: String): Result<Intent> {
-        if (!isUuid(sessionId)) return Result.failure(IllegalArgumentException("Invalid screen-sharing session."))
         if (!isDeviceAuthorized()) return Result.failure(SecurityException("Device is not authorized."))
+        return requestAuthorizationInternal(sessionId)
+    }
+
+    private fun requestAuthorizationInternal(sessionId: String): Result<Intent> {
+        if (!isUuid(sessionId)) return Result.failure(IllegalArgumentException("Invalid screen-sharing session."))
         val current = state.value
         if (current.state == ScreenCaptureState.ACTIVE || current.state == ScreenCaptureState.STARTING) {
             if (current.sessionId == sessionId) return Result.success(Intent())
@@ -43,8 +47,8 @@ class ScreenShareManager(
         return Result.success(manager.createScreenCaptureIntent())
     }
 
-    suspend fun requestAuthorizationFromCommand(sessionId: String): Result<Unit> {
-        return requestAuthorization(sessionId).map {
+    fun requestAuthorizationFromCommand(sessionId: String): Result<Unit> {
+        return requestAuthorizationInternal(sessionId).map {
             postAuthorizationNotification(sessionId)
             Unit
         }
