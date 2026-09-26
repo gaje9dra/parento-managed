@@ -199,6 +199,14 @@ class ParentoApplication : Application() {
         )
         connectivityObserver.start()
 
+        applicationScope.launch {
+            connectionState.collect { connection ->
+                if (connection != com.parento.managed.domain.ConnectionState.CONNECTED) {
+                    audioAccessManager.stop()
+                }
+            }
+        }
+
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             ApplicationLifecycleObserver(
                 onForeground = {
@@ -249,6 +257,12 @@ class ParentoApplication : Application() {
                 deviceCommunicationSessionManager.recover()
                 if (result.value.enrollmentState == com.parento.managed.domain.EnrollmentState.ENROLLED) {
                     deviceCommunicationSessionManager.connect()
+                    deviceCommunicationSessionManager.startCommandStream(applicationScope) { command ->
+                        when (val processed = managedCommandRuntime.process(command)) {
+                            is OperationResult.Failure -> logger.log(LogLevel.WARN, "Managed command processing failed: ${processed.error.name}.")
+                            is OperationResult.Success -> Unit
+                        }
+                    }
                 }
                 logger.log(LogLevel.INFO, "Managed-device initialization completed.")
             } else {
