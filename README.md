@@ -348,3 +348,12 @@ Phase 9.2 adds the Managed Android MediaProjection foundation for authorized scr
 - Does not implement the Admin screen viewer or a speculative production media-streaming protocol.
 
 Detailed architecture and the real-device test plan are documented in `docs/phase-9.2-screen-capture.md`.
+
+
+## Phase 11.2 — Managed Android Application Inventory & Management Foundation
+
+Phase 11.2 adds deterministic PackageManager-based application inventory collection, bounded authenticated inventory synchronization, WorkManager scheduling, local application-management synchronization metadata, and allowlisted application inventory/policy-reference command handlers.
+
+The full installed application list is not persisted locally. Final application blocking/enforcement is not implemented. The current backend SYNC_APPLICATION_POLICY contract supplies only policy ID/version and has no Managed-device policy retrieval endpoint, so this phase records desired policy reference state without pretending that policy rules were downloaded or enforced.
+
+See docs/phase-11.2-application-management.md for architecture, security/privacy boundaries, backend contract limitations, and the manual Android test plan.

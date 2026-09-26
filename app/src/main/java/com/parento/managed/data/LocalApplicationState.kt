@@ -6,6 +6,9 @@ import com.parento.managed.device.DeviceManagementCapability
 import com.parento.managed.device.ManagementMode
 import com.parento.managed.domain.ConnectionState
 import com.parento.managed.domain.EnrollmentState
+import com.parento.managed.application.ApplicationEnforcementStatus
+import com.parento.managed.application.ApplicationInventorySyncStatus
+import com.parento.managed.application.ApplicationPolicySyncStatus
 
 data class LocalDeviceIdentity(
     val installationId: String,
@@ -24,4 +27,12 @@ data class LocalApplicationState(
     val managementMode: ManagementMode = ManagementMode.NOT_MANAGED,
     val managementCapabilities: List<CapabilityState> = emptyList(),
     val managementStateUpdatedAtEpochMillis: Long? = null,
+    val applicationInventorySyncStatus: ApplicationInventorySyncStatus = ApplicationInventorySyncStatus.NEVER_SYNCED,
+    val lastApplicationInventoryObservedAtEpochMillis: Long? = null,
+    val lastApplicationInventorySuccessfulSyncAtEpochMillis: Long? = null,
+    val desiredApplicationPolicyId: String? = null,
+    val desiredApplicationPolicyVersion: Int? = null,
+    val acceptedApplicationPolicyVersion: Int? = null,
+    val applicationPolicySyncStatus: ApplicationPolicySyncStatus = ApplicationPolicySyncStatus.NONE,
+    val applicationEnforcementStatus: ApplicationEnforcementStatus = ApplicationEnforcementStatus.UNKNOWN,
 )

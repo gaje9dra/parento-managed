@@ -3,6 +3,9 @@ package com.parento.managed
 import android.app.Application
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.parento.managed.background.WorkManagerBackgroundWorkScheduler
+import com.parento.managed.application.ApplicationInventoryCollector
+import com.parento.managed.application.ApplicationInventoryScheduler
+import com.parento.managed.application.ApplicationInventorySync
 import com.parento.managed.communication.AndroidDeviceCredentialStore
 import com.parento.managed.communication.AndroidDeviceSessionStore
 import com.parento.managed.communication.DeviceCommunicationSessionManager
@@ -61,6 +64,7 @@ class ParentoApplication : Application() {
     private lateinit var startupOrchestrator: ManagedStartupOrchestrator
     private lateinit var monitoringScheduler: MonitoringScheduler
     private lateinit var locationScheduler: com.parento.managed.location.LocationScheduler
+    private lateinit var applicationInventoryScheduler: ApplicationInventoryScheduler
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
@@ -144,6 +148,16 @@ class ParentoApplication : Application() {
             dao = LocalDatabaseProvider.get().managedCommandDao(),
             sessionManager = deviceCommunicationSessionManager,
             screenShareManager = screenShareManager,
+            applicationInventorySync = applicationInventorySync,
+            localStateRepository = localStateRepository,
+        )
+    }
+
+    val applicationInventorySync: ApplicationInventorySync by lazy {
+        ApplicationInventorySync(
+            collector = ApplicationInventoryCollector(this),
+            localStateRepository = localStateRepository,
+            sessionManager = deviceCommunicationSessionManager,
         )
     }
 
@@ -183,6 +197,8 @@ class ParentoApplication : Application() {
         monitoringScheduler.schedule()
         locationScheduler = com.parento.managed.location.LocationScheduler(this)
         locationScheduler.schedule()
+        applicationInventoryScheduler = ApplicationInventoryScheduler(this)
+        applicationInventoryScheduler.schedule()
 
         connectivityObserver = AndroidConnectivityObserver(
             context = this,
