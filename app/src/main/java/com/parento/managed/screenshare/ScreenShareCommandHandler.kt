@@ -1,8 +1,8 @@
 package com.parento.managed.screenshare
 
+import com.parento.managed.command.CommandExecutionState
 import com.parento.managed.command.CommandHandler
 import com.parento.managed.command.CommandResult
-import com.parento.managed.command.CommandExecutionState
 import com.parento.managed.command.ManagedCommand
 import com.parento.managed.domain.OperationResult
 import org.json.JSONObject
@@ -15,7 +15,7 @@ class ScreenShareStartCommandHandler(
     override val supportedVersion: Int = 1
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
-        val sessionId = sessionId(command) ?: return OperationResult.Success(
+        val sessionId = screenSessionId(command) ?: return OperationResult.Success(
             CommandResult(CommandExecutionState.FAILED, "INVALID_SESSION", "INVALID_SESSION"),
         )
         val current = manager.state.value
@@ -30,19 +30,28 @@ class ScreenShareStartCommandHandler(
                     CommandExecutionState.RUNNING,
                     "AUTHORIZATION_REQUIRED",
                     null,
-                    JSONObject().put("sessionId", sessionId).put("state", ScreenCaptureState.AUTHORIZATION_REQUIRED.name).toString(),
+                    JSONObject()
+                        .put("screenSessionId", sessionId)
+                        .put("state", ScreenCaptureState.AUTHORIZATION_REQUIRED.name)
+                        .toString(),
                 ),
             )
         } else {
             OperationResult.Success(
-                CommandResult(CommandExecutionState.FAILED, "AUTHORIZATION_REQUIRED", "AUTHORIZATION_FAILURE"),
+                CommandResult(
+                    CommandExecutionState.FAILED,
+                    "AUTHORIZATION_REQUIRED",
+                    "AUTHORIZATION_FAILURE",
+                ),
             )
         }
     }
 
-    private fun sessionId(command: ManagedCommand): String? =
+    private fun screenSessionId(command: ManagedCommand): String? =
         runCatching {
-            val id = JSONObject(command.payloadJson).getString("sessionId").trim()
+            val payload = JSONObject(command.payloadJson)
+            if (payload.length() != 1 || !payload.has("screenSessionId")) return null
+            val id = payload.getString("screenSessionId").trim()
             UUID.fromString(id)
             id
         }.getOrNull()
@@ -56,7 +65,9 @@ class ScreenShareStopCommandHandler(
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
         val sessionId = runCatching {
-            val id = JSONObject(command.payloadJson).getString("sessionId").trim()
+            val payload = JSONObject(command.payloadJson)
+            if (payload.length() != 1 || !payload.has("screenSessionId")) return@runCatching null
+            val id = payload.getString("screenSessionId").trim()
             UUID.fromString(id)
             id
         }.getOrNull()
@@ -66,10 +77,14 @@ class ScreenShareStopCommandHandler(
 
         return manager.stop(sessionId).fold(
             onSuccess = {
-                OperationResult.Success(CommandResult(CommandExecutionState.SUCCEEDED, "STOP_REQUESTED", null))
+                OperationResult.Success(
+                    CommandResult(CommandExecutionState.SUCCEEDED, "STOP_REQUESTED", null),
+                )
             },
             onFailure = {
-                OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "STOP_FAILED", "CAPTURE_STOP_FAILED"))
+                OperationResult.Success(
+                    CommandResult(CommandExecutionState.FAILED, "STOP_FAILED", "CAPTURE_STOP_FAILED"),
+                )
             },
         )
     }
