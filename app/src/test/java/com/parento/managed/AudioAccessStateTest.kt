@@ -16,5 +16,6 @@ class AudioAccessStateTest {
     fun terminalStatesAreDistinctFromActiveState() {
         assertNotEquals(AudioAccessState.ACTIVE, AudioAccessState.STOPPED)
         assertNotEquals(AudioAccessState.ACTIVE, AudioAccessState.FAILED)
+        assertNotEquals(AudioAccessState.ACTIVE, AudioAccessState.EXPIRED)
     }
 }
