@@ -40,7 +40,7 @@ class AudioStartCommandHandler(private val manager: AudioAccessManager) : Comman
         if (current.sessionId == sessionId && current.state in setOf(AudioAccessState.STOPPING, AudioAccessState.STOPPED, AudioAccessState.EXPIRED, AudioAccessState.FAILED)) {
             return OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "SESSION_NOT_STARTABLE", "INVALID_STATE", metadata(sessionId, current.state)))
         }
-        if (!manager.microphonePermissionGranted())
+        if (!manager.microphonePermissionGranted()) {
             manager.requestPermissionFromCommand(sessionId)
             return OperationResult.Success(
                 CommandResult(
@@ -50,6 +50,7 @@ class AudioStartCommandHandler(private val manager: AudioAccessManager) : Comman
                     metadata(sessionId, AudioAccessState.PERMISSION_REQUIRED),
                 ),
             )
+        }
         }
         if (!manager.mediaTransportAvailable()) {
             return OperationResult.Success(
