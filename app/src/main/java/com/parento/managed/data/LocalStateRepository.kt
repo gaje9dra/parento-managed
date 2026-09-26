@@ -6,6 +6,9 @@ import com.parento.managed.domain.EnrollmentState
 import com.parento.managed.domain.ConnectionState
 import com.parento.managed.device.CapabilityState
 import com.parento.managed.device.CapabilityStatus
+import com.parento.managed.application.ApplicationEnforcementStatus
+import com.parento.managed.application.ApplicationInventorySyncStatus
+import com.parento.managed.application.ApplicationPolicySyncStatus
 import com.parento.managed.device.DeviceManagementCapability
 import com.parento.managed.device.ManagementMode
 import com.parento.managed.domain.ManagedError
@@ -34,6 +37,19 @@ interface ConnectionStateRepository {
 interface ManagedDeviceStateRepository {
     suspend fun getManagedDeviceId(): OperationResult<String?>
     suspend fun completeEnrollment(managedDeviceId: String): OperationResult<Unit>
+    suspend fun updateApplicationInventorySync(
+        status: ApplicationInventorySyncStatus,
+        observedAtEpochMillis: Long? = null,
+        successfulSyncAtEpochMillis: Long? = null,
+    ): OperationResult<Unit>
+    suspend fun updateApplicationPolicyReference(
+        policyId: String,
+        policyVersion: Int,
+        status: ApplicationPolicySyncStatus,
+    ): OperationResult<Unit>
+    suspend fun updateApplicationEnforcementStatus(
+        status: ApplicationEnforcementStatus,
+    ): OperationResult<Unit>
 }
 
 interface LocalStateRepository :
@@ -178,6 +194,59 @@ class RoomLocalStateRepository(
             }
         }
 
+    override suspend fun updateApplicationInventorySync(
+        status: ApplicationInventorySyncStatus,
+        observedAtEpochMillis: Long?,
+        successfulSyncAtEpochMillis: Long?,
+    ): OperationResult<Unit> = stateMutex.withLock {
+        runStorageOperation {
+            val current = dao.read()?.toDomain() ?: LocalApplicationState()
+            dao.upsert(
+                current.copy(
+                    applicationInventorySyncStatus = status,
+                    lastApplicationInventoryObservedAtEpochMillis =
+                        observedAtEpochMillis ?: current.lastApplicationInventoryObservedAtEpochMillis,
+                    lastApplicationInventorySuccessfulSyncAtEpochMillis =
+                        successfulSyncAtEpochMillis ?: current.lastApplicationInventorySuccessfulSyncAtEpochMillis,
+                ).toEntity(),
+            )
+        }
+    }
+
+    override suspend fun updateApplicationPolicyReference(
+        policyId: String,
+        policyVersion: Int,
+        status: ApplicationPolicySyncStatus,
+    ): OperationResult<Unit> = stateMutex.withLock {
+        runStorageOperation {
+            val current = dao.read()?.toDomain() ?: LocalApplicationState()
+            dao.upsert(
+                current.copy(
+                    desiredApplicationPolicyId = policyId,
+                    desiredApplicationPolicyVersion = policyVersion,
+                    acceptedApplicationPolicyVersion =
+                        maxOf(current.acceptedApplicationPolicyVersion ?: 0, policyVersion),
+                    applicationPolicySyncStatus = status,
+                    applicationEnforcementStatus =
+                        if (status == ApplicationPolicySyncStatus.PENDING) {
+                            ApplicationEnforcementStatus.PENDING
+                        } else {
+                            current.applicationEnforcementStatus
+                        },
+                ).toEntity(),
+            )
+        }
+    }
+
+    override suspend fun updateApplicationEnforcementStatus(
+        status: ApplicationEnforcementStatus,
+    ): OperationResult<Unit> = stateMutex.withLock {
+        runStorageOperation {
+            val current = dao.read()?.toDomain() ?: LocalApplicationState()
+            dao.upsert(current.copy(applicationEnforcementStatus = status).toEntity())
+        }
+    }
+
     override suspend fun updateConnectionState(state: ConnectionState): OperationResult<Unit> =
         stateMutex.withLock {
             runStorageOperation {
@@ -224,6 +293,20 @@ private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState {
             .getOrElse { throw IllegalStateException("Invalid persisted management mode.") },
         managementCapabilities = decodeCapabilities(managementCapabilities),
         managementStateUpdatedAtEpochMillis = managementStateUpdatedAtEpochMillis,
+        applicationInventorySyncStatus = runCatching {
+            ApplicationInventorySyncStatus.valueOf(applicationInventorySyncStatus)
+        }.getOrElse { throw IllegalStateException("Invalid persisted application inventory sync status.") },
+        lastApplicationInventoryObservedAtEpochMillis = lastApplicationInventoryObservedAtEpochMillis,
+        lastApplicationInventorySuccessfulSyncAtEpochMillis = lastApplicationInventorySuccessfulSyncAtEpochMillis,
+        desiredApplicationPolicyId = desiredApplicationPolicyId,
+        desiredApplicationPolicyVersion = desiredApplicationPolicyVersion,
+        acceptedApplicationPolicyVersion = acceptedApplicationPolicyVersion,
+        applicationPolicySyncStatus = runCatching {
+            ApplicationPolicySyncStatus.valueOf(applicationPolicySyncStatus)
+        }.getOrElse { throw IllegalStateException("Invalid persisted application policy sync status.") },
+        applicationEnforcementStatus = runCatching {
+            ApplicationEnforcementStatus.valueOf(applicationEnforcementStatus)
+        }.getOrElse { throw IllegalStateException("Invalid persisted application enforcement status.") },
     )
 }
 
@@ -240,6 +323,14 @@ private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
         managementMode = managementMode.name,
         managementCapabilities = encodeCapabilities(managementCapabilities),
         managementStateUpdatedAtEpochMillis = managementStateUpdatedAtEpochMillis,
+        applicationInventorySyncStatus = applicationInventorySyncStatus.name,
+        lastApplicationInventoryObservedAtEpochMillis = lastApplicationInventoryObservedAtEpochMillis,
+        lastApplicationInventorySuccessfulSyncAtEpochMillis = lastApplicationInventorySuccessfulSyncAtEpochMillis,
+        desiredApplicationPolicyId = desiredApplicationPolicyId,
+        desiredApplicationPolicyVersion = desiredApplicationPolicyVersion,
+        acceptedApplicationPolicyVersion = acceptedApplicationPolicyVersion,
+        applicationPolicySyncStatus = applicationPolicySyncStatus.name,
+        applicationEnforcementStatus = applicationEnforcementStatus.name,
     )
 
 
