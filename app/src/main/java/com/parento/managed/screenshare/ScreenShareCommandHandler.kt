@@ -8,6 +8,15 @@ import com.parento.managed.domain.OperationResult
 import org.json.JSONObject
 import java.util.UUID
 
+internal fun parseScreenSessionId(payloadJson: String): String? =
+    runCatching {
+        val payload = JSONObject(payloadJson)
+        if (payload.length() != 1 || !payload.has("screenSessionId")) return null
+        val id = payload.getString("screenSessionId").trim()
+        UUID.fromString(id)
+        id
+    }.getOrNull()
+
 class ScreenShareStartCommandHandler(
     private val manager: ScreenShareManager,
 ) : CommandHandler {
@@ -48,13 +57,7 @@ class ScreenShareStartCommandHandler(
     }
 
     private fun screenSessionId(command: ManagedCommand): String? =
-        runCatching {
-            val payload = JSONObject(command.payloadJson)
-            if (payload.length() != 1 || !payload.has("screenSessionId")) return null
-            val id = payload.getString("screenSessionId").trim()
-            UUID.fromString(id)
-            id
-        }.getOrNull()
+        parseScreenSessionId(command.payloadJson)
 }
 
 class ScreenShareStopCommandHandler(
@@ -64,13 +67,7 @@ class ScreenShareStopCommandHandler(
     override val supportedVersion: Int = 1
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> {
-        val sessionId = runCatching {
-            val payload = JSONObject(command.payloadJson)
-            if (payload.length() != 1 || !payload.has("screenSessionId")) return@runCatching null
-            val id = payload.getString("screenSessionId").trim()
-            UUID.fromString(id)
-            id
-        }.getOrNull()
+        val sessionId = parseScreenSessionId(command.payloadJson)
             ?: return OperationResult.Success(
                 CommandResult(CommandExecutionState.FAILED, "INVALID_SESSION", "INVALID_SESSION"),
             )
