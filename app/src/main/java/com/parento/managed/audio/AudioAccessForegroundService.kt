@@ -44,43 +44,48 @@ class AudioAccessForegroundService : Service() {
         }
 
         val requestedSession = intent?.getStringExtra(EXTRA_SESSION_ID)
+        val validatedSessionId = requestedSession ?: run {
+            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.FAILED, null, System.currentTimeMillis(), "INVALID_AUTHORIZATION_RESULT"))
+            stopSelf()
+            return START_NOT_STICKY
+        }
         val current = AudioAccessRuntime.snapshot()
-        if (!isUuid(requestedSession) || current.sessionId != requestedSession || current.state != AudioAccessState.STARTING) {
+        if (!isUuid(validatedSessionId) || current.sessionId != validatedSessionId || current.state != AudioAccessState.STARTING) {
             AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.FAILED, null, System.currentTimeMillis(), "INVALID_AUTHORIZATION_RESULT"))
             stopSelf()
             return START_NOT_STICKY
         }
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.PERMISSION_REQUIRED, requestedSession, System.currentTimeMillis(), "MICROPHONE_PERMISSION_REQUIRED"))
+            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.PERMISSION_REQUIRED, validatedSessionId, System.currentTimeMillis(), "MICROPHONE_PERMISSION_REQUIRED"))
             stopSelf()
             return START_NOT_STICKY
         }
         val mediaTransport = transport ?: UnavailableAudioTransport()
         if (!mediaTransport.isAvailable()) {
-            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.FAILED, requestedSession, System.currentTimeMillis(), "AUDIO_TRANSPORT_UNAVAILABLE"))
+            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.FAILED, validatedSessionId, System.currentTimeMillis(), "AUDIO_TRANSPORT_UNAVAILABLE"))
             stopSelf()
             return START_NOT_STICKY
         }
 
         return runCatching {
             startForegroundWithMicrophone()
-            sessionId = requestedSession
-            mediaTransport.start(requestedSession).getOrThrow()
-            capture?.start(requestedSession) { buffer, length, timestamp ->
+            sessionId = validatedSessionId
+            mediaTransport.start(validatedSessionId).getOrThrow()
+            capture?.start(validatedSessionId) { buffer, length, timestamp ->
                 mediaTransport.send(buffer, length, timestamp)
             }?.getOrThrow()
-            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.ACTIVE, requestedSession, System.currentTimeMillis()))
+            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.ACTIVE, validatedSessionId, System.currentTimeMillis()))
             reportedStarted = true
             serviceScope.launch {
                 (application as ParentoApplication).deviceCommunicationSessionManager.reportAudioStarted(
-                    requestedSession,
+                    validatedSessionId,
                     "{\"state\":\"ACTIVE\",\"transport\":\"audio-media\"}",
                 )
             }
         }.onFailure {
             mediaTransport.stop()
             capture?.stop()
-            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.FAILED, requestedSession, System.currentTimeMillis(), "AUDIO_START_FAILED"))
+            AudioAccessRuntime.publish(AudioAccessSnapshot(AudioAccessState.FAILED, validatedSessionId, System.currentTimeMillis(), "AUDIO_START_FAILED"))
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }.let { START_NOT_STICKY }
