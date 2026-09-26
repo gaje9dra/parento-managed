@@ -21,11 +21,21 @@ class MonitoringCollectionTest {
         val repository = FakeMonitoringRepository()
         val result = CollectDeviceMonitoringSnapshot(
             StaticDeviceProvider(),
-            BatteryInfoProvider { OperationResult.Failure(com.parento.managed.domain.ManagedError.PLATFORM_FAILURE) },
-            NetworkInfoProvider { OperationResult.Success(NetworkInfo(NetworkState.WIFI)) },
-            StorageInfoProvider { OperationResult.Success(StorageInfo(1000L, 400L, 600L)) },
-            MemoryInfoProvider { OperationResult.Success(MemoryInfo(2000L, 800L, false)) },
-            ManagementInfoProvider { OperationResult.Success(ManagementMode.DEVICE_OWNER) },
+            object : BatteryInfoProvider {
+                override fun get() = OperationResult.Failure(com.parento.managed.domain.ManagedError.PLATFORM_FAILURE)
+            },
+            object : NetworkInfoProvider {
+                override suspend fun get() = OperationResult.Success(NetworkInfo(NetworkState.WIFI))
+            },
+            object : StorageInfoProvider {
+                override fun get() = OperationResult.Success(StorageInfo(1000L, 400L, 600L))
+            },
+            object : MemoryInfoProvider {
+                override fun get() = OperationResult.Success(MemoryInfo(2000L, 800L, false))
+            },
+            object : ManagementInfoProvider {
+                override fun get() = OperationResult.Success(ManagementMode.DEVICE_OWNER)
+            },
             FakeLocalStateRepository(),
             repository,
             nowEpochMillis = { 1234L },
