@@ -25,7 +25,7 @@ class MonitoringCollectionTest {
                 override fun get() = OperationResult.Failure(com.parento.managed.domain.ManagedError.PLATFORM_FAILURE)
             },
             object : NetworkInfoProvider {
-                override suspend fun get() = OperationResult.Success(NetworkInfo(NetworkState.WIFI))
+                override fun get() = OperationResult.Success(NetworkInfo(NetworkState.WIFI))
             },
             object : StorageInfoProvider {
                 override fun get() = OperationResult.Success(StorageInfo(1000L, 400L, 600L))
@@ -53,7 +53,7 @@ class MonitoringCollectionTest {
 }
 
 private class StaticDeviceProvider : DeviceInfoProvider {
-    override fun get() = OperationResult.Success(
+    override suspend fun get() = OperationResult.Success(
         DeviceInfo("managed-1", "550e8400-e29b-41d4-a716-446655440000", ManagementMode.PROFILE_OWNER, "15", 35, "0.1.0", 1L),
     )
 }
