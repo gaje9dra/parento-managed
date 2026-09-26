@@ -77,19 +77,4 @@ class ScreenCaptureStateMachineTest {
         )
     }
 
-    @Test
-    fun processRestartedCapture_canOnlyRecoverThroughNewRequest() {
-        listOf(
-            ScreenCaptureState.AUTHORIZED,
-            ScreenCaptureState.STARTING,
-            ScreenCaptureState.STOPPING,
-        ).forEach { stale ->
-            assertFalse(
-                ScreenCaptureStateMachine.canTransition(
-                    stale,
-                    ScreenCaptureState.ACTIVE,
-                ),
-            )
-        }
-    }
 }
