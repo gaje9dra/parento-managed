@@ -50,6 +50,9 @@ interface ManagedDeviceStateRepository {
     suspend fun updateApplicationEnforcementStatus(
         status: ApplicationEnforcementStatus,
     ): OperationResult<Unit>
+    suspend fun updateApplicationPolicySyncStatus(
+        status: ApplicationPolicySyncStatus,
+    ): OperationResult<Unit>
 }
 
 interface LocalStateRepository :
@@ -244,6 +247,15 @@ class RoomLocalStateRepository(
         runStorageOperation {
             val current = dao.read()?.toDomain() ?: LocalApplicationState()
             dao.upsert(current.copy(applicationEnforcementStatus = status).toEntity())
+        }
+    }
+
+    override suspend fun updateApplicationPolicySyncStatus(
+        status: ApplicationPolicySyncStatus,
+    ): OperationResult<Unit> = stateMutex.withLock {
+        runStorageOperation {
+            val current = dao.read()?.toDomain() ?: LocalApplicationState()
+            dao.upsert(current.copy(applicationPolicySyncStatus = status).toEntity())
         }
     }
 
