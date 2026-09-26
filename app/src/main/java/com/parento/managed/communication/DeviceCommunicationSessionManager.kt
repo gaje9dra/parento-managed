@@ -80,6 +80,12 @@ class DeviceCommunicationSessionManager(
         }
     }
 
+    suspend fun currentManagedDeviceId(): String? =
+        when (val result = localStateRepository.getManagedDeviceId()) {
+            is OperationResult.Failure -> null
+            is OperationResult.Success -> result.value
+        }
+
     suspend fun currentSessionToken(): String? = when (val result = sessionStore.read()) {
         is OperationResult.Failure -> null
         is OperationResult.Success -> result.value?.takeIf {
