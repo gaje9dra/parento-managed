@@ -80,6 +80,41 @@ class DeviceCommunicationSessionManager(
         }
     }
 
+    suspend fun currentSessionToken(): String? = when (val result = sessionStore.read()) {
+        is OperationResult.Failure -> null
+        is OperationResult.Success -> result.value?.takeIf {
+            it.expiresAtEpochMillis > System.currentTimeMillis()
+        }?.sessionToken
+    }
+
+    fun transportBoundary(): DeviceTransport = transport
+
+    suspend fun receiveNextCommand(): OperationResult<TransportCommand?> = mutex.withLock {
+        val session = when (val result = sessionStore.read()) {
+            is OperationResult.Failure -> return@withLock result
+            is OperationResult.Success -> result.value
+        } ?: return@withLock OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+
+        if (session.expiresAtEpochMillis <= System.currentTimeMillis()) {
+            sessionStore.clear()
+            transition(ConnectionState.DISCONNECTED)
+            return@withLock OperationResult.Failure(ManagedError.AUTHENTICATION_FAILURE)
+        }
+
+        when (val result = transport.receiveNextCommand(session.sessionToken)) {
+            is OperationResult.Failure -> {
+                if (result.error == ManagedError.AUTHENTICATION_FAILURE ||
+                    result.error == ManagedError.AUTHORIZATION_FAILURE
+                ) {
+                    sessionStore.clear()
+                    transition(ConnectionState.DISCONNECTED)
+                }
+                result
+            }
+            is OperationResult.Success -> OperationResult.Success(result.value)
+        }
+    }
+
     suspend fun heartbeat(): OperationResult<ConnectionState> = mutex.withLock {
         val session = when (val result = sessionStore.read()) {
             is OperationResult.Failure -> return@withLock result
