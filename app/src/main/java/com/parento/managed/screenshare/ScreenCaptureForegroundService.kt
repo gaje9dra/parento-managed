@@ -44,7 +44,14 @@ class ScreenCaptureForegroundService : Service() {
         }
 
         val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, Int.MIN_VALUE) ?: Int.MIN_VALUE
-        val resultData = intent?.getParcelableExtra<Intent>(EXTRA_RESULT_DATA)
+        val resultData = intent?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                it.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                it.getParcelableExtra(EXTRA_RESULT_DATA)
+            }
+        }
         val sessionId = intent?.getStringExtra(EXTRA_SESSION_ID)
 
         if (resultCode == Int.MIN_VALUE || resultData == null || sessionId.isNullOrBlank()) {
