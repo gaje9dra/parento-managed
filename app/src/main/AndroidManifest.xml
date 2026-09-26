@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
         android:name=".ParentoApplication"
@@ -34,6 +36,10 @@
             android:name=".screenshare.ScreenCaptureForegroundService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+        <service
+            android:name=".audio.AudioAccessForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

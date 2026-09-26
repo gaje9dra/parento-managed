@@ -2,6 +2,7 @@ package com.parento.managed
 
 import android.app.Application
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.parento.managed.audio.AudioAccessManager
 import com.parento.managed.background.WorkManagerBackgroundWorkScheduler
 import com.parento.managed.communication.AndroidDeviceCredentialStore
 import com.parento.managed.communication.AndroidDeviceSessionStore
@@ -119,6 +120,10 @@ class ParentoApplication : Application() {
         return deviceCommunicationSessionManager.connect() is OperationResult.Success
     }
 
+    val audioAccessManager: AudioAccessManager by lazy {
+        AudioAccessManager(this)
+    }
+
     val screenShareManager: ScreenShareManager by lazy {
         ScreenShareManager(this) {
             val enrollment = localStateRepository.getEnrollmentState()
@@ -144,6 +149,7 @@ class ParentoApplication : Application() {
             dao = LocalDatabaseProvider.get().managedCommandDao(),
             sessionManager = deviceCommunicationSessionManager,
             screenShareManager = screenShareManager,
+            audioAccessManager = audioAccessManager,
         )
     }
 
@@ -193,6 +199,14 @@ class ParentoApplication : Application() {
         )
         connectivityObserver.start()
 
+        applicationScope.launch {
+            connectionState.collect { connection ->
+                if (connection != com.parento.managed.domain.ConnectionState.CONNECTED) {
+                    audioAccessManager.stop()
+                }
+            }
+        }
+
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             ApplicationLifecycleObserver(
                 onForeground = {
@@ -208,9 +222,11 @@ class ParentoApplication : Application() {
         )
 
         screenShareManager
+        audioAccessManager
         applicationScope.launch {
             localStateRepository.observe().collect {
                 screenShareManager.enforceAuthorization()
+                audioAccessManager.enforcePermissionBoundary()
             }
         }
         initialize()
@@ -241,6 +257,12 @@ class ParentoApplication : Application() {
                 deviceCommunicationSessionManager.recover()
                 if (result.value.enrollmentState == com.parento.managed.domain.EnrollmentState.ENROLLED) {
                     deviceCommunicationSessionManager.connect()
+                    deviceCommunicationSessionManager.startCommandStream(applicationScope) { command ->
+                        when (val processed = managedCommandRuntime.process(command)) {
+                            is OperationResult.Failure -> logger.log(LogLevel.WARN, "Managed command processing failed: ${processed.error.name}.")
+                            is OperationResult.Success -> Unit
+                        }
+                    }
                 }
                 logger.log(LogLevel.INFO, "Managed-device initialization completed.")
             } else {

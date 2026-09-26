@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
+import androidx.appcompat.app.AlertDialog
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
@@ -31,6 +32,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusScreen: ManagedStatusScreen
     private lateinit var enrollmentScreen: EnrollmentScreen
     private lateinit var enrollmentContainer: LinearLayout
+
+    private val microphonePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        microphonePermissionPromptShown = false
+    }
+
+    private var microphonePermissionPromptShown = false
 
     private val foregroundLocationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -152,7 +161,29 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        app?.let { refreshLocationUi(it) }
+        app?.let {
+            refreshLocationUi(it)
+            promptForMicrophonePermissionIfNeeded(it)
+        }
+    }
+
+    private fun promptForMicrophonePermissionIfNeeded(app: ParentoApplication) {
+        if (
+            microphonePermissionPromptShown ||
+            app.audioAccessManager.state.value.state != com.parento.managed.audio.AudioAccessState.PERMISSION_REQUIRED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
+
+        microphonePermissionPromptShown = true
+        AlertDialog.Builder(this)
+            .setTitle(R.string.audio_permission_title)
+            .setMessage(R.string.audio_permission_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.enable_microphone) { _, _ ->
+                microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+            .show()
     }
 
 }

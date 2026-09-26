@@ -1,5 +1,8 @@
 package com.parento.managed.screenshare
 
+import com.parento.managed.audio.AudioStartCommandHandler
+import com.parento.managed.audio.AudioStopCommandHandler
+import com.parento.managed.audio.AudioAccessManager
 import com.parento.managed.command.AllowlistedCommandAuthorization
 import com.parento.managed.command.CommandProcessor
 import com.parento.managed.command.CommandResult
@@ -14,10 +17,13 @@ class ManagedCommandRuntime(
     private val dao: ManagedCommandDao,
     private val sessionManager: DeviceCommunicationSessionManager,
     screenShareManager: ScreenShareManager,
+    audioAccessManager: AudioAccessManager,
 ) {
     private val handlers = mapOf(
         "START_SCREEN_SHARE" to ScreenShareStartCommandHandler(screenShareManager),
         "STOP_SCREEN_SHARE" to ScreenShareStopCommandHandler(screenShareManager),
+        "START_AUDIO_ACCESS" to AudioStartCommandHandler(audioAccessManager),
+        "STOP_AUDIO_ACCESS" to AudioStopCommandHandler(audioAccessManager),
     )
 
     suspend fun processNextCommand(): OperationResult<CommandResult?> =
