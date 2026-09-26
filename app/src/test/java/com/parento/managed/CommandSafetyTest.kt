@@ -50,6 +50,26 @@ class CommandSafetyTest {
         assertEquals(CommandExecutionState.FAILED, (result as OperationResult.Success).value.state)
     }
 
+    @Test
+    fun audioCommandRequiresExactSessionPayloadAndDeterministicIdempotency() {
+        val audioSessionId = "550e8400-e29b-41d4-a716-446655440099"
+        val audio = command.copy(
+            commandType = "START_AUDIO_ACCESS",
+            payloadJson = """{"audioSessionId":"$audioSessionId"""}""",
+            idempotencyKey = "audio-session:$audioSessionId:START_AUDIO_ACCESS",
+        )
+        assertTrue(DefaultCommandValidator({ audio.managedDeviceId }).validate(audio) is OperationResult.Success)
+        assertTrue(
+            DefaultCommandValidator({ audio.managedDeviceId }).validate(
+                audio.copy(idempotencyKey = "wrong-key"),
+            ) is OperationResult.Failure,
+        )
+        assertTrue(
+            DefaultCommandValidator({ audio.managedDeviceId }).validate(
+                audio.copy(payloadJson = """{"audioSessionId":"$audioSessionId","extra":"x"}"""),
+            ) is OperationResult.Failure,
+        )
+    }
     @Test fun malformedCommandTypeIsRejected() {
         val result = DefaultCommandValidator({ command.managedDeviceId }).validate(command.copy(commandType = ""))
         assertEquals(ManagedError.INVALID_STATE, (result as OperationResult.Failure).error)
