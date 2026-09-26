@@ -75,11 +75,18 @@ class CommandProcessor(
         }
 
         dao.updateState(command.commandId, result.state.name, result.resultCode, result.errorCategory, result.safeMetadataJson, nowEpochMillis())
-        if (result.state == CommandExecutionState.SUCCEEDED || result.state == CommandExecutionState.FAILED) {
+        if (result.state == CommandExecutionState.RUNNING ||
+            result.state == CommandExecutionState.SUCCEEDED ||
+            result.state == CommandExecutionState.FAILED
+        ) {
             transport.result(
                 token,
                 command.commandId,
-                if (result.state == CommandExecutionState.SUCCEEDED) "SUCCEEDED" else "FAILED",
+                when (result.state) {
+                    CommandExecutionState.SUCCEEDED -> "SUCCEEDED"
+                    CommandExecutionState.RUNNING -> "RUNNING"
+                    else -> "FAILED"
+                },
                 result.resultCode,
                 result.errorCategory,
                 result.safeMetadataJson,
