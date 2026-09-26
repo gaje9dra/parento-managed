@@ -35,5 +35,10 @@
     <string name="location_services_disabled">Location services are disabled</string>
     <string name="location_provider_unavailable">Location provider unavailable</string>
     <string name="location_temporarily_unavailable">Location temporarily unavailable</string>
+    <string name="screen_share_notification_channel">Screen sharing</string>
+    <string name="screen_share_notification_title">Screen sharing is active</string>
+    <string name="screen_share_notification_active">Parento is actively sharing this device screen.</string>
+    <string name="screen_share_authorization_title">Screen-sharing request</string>
+    <string name="screen_share_authorization_message">Review and authorize the requested screen-sharing session.</string>
     <string name="location_error">Location capability error</string>
 </resources>

@@ -34,6 +34,8 @@ import com.parento.managed.logging.AndroidManagedLogger
 import com.parento.managed.logging.LogLevel
 import com.parento.managed.logging.ManagedLogger
 import com.parento.managed.policy.DefaultPolicyEngine
+import com.parento.managed.screenshare.ManagedCommandRuntime
+import com.parento.managed.screenshare.ScreenShareManager
 import com.parento.managed.monitoring.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -116,6 +118,26 @@ class ParentoApplication : Application() {
         return deviceCommunicationSessionManager.connect() is OperationResult.Success
     }
 
+    val screenShareManager: ScreenShareManager by lazy {
+        ScreenShareManager(this) {
+            val enrollment = localStateRepository.getEnrollmentState()
+            val managedDeviceId = localStateRepository.getManagedDeviceId()
+            enrollment is OperationResult.Success &&
+                enrollment.value == com.parento.managed.domain.EnrollmentState.ENROLLED &&
+                managedDeviceId is OperationResult.Success &&
+                !managedDeviceId.value.isNullOrBlank() &&
+                connectionState.value == com.parento.managed.domain.ConnectionState.CONNECTED
+        }
+    }
+
+    val managedCommandRuntime: ManagedCommandRuntime by lazy {
+        ManagedCommandRuntime(
+            dao = LocalDatabaseProvider.get().managedCommandDao(),
+            sessionManager = deviceCommunicationSessionManager,
+            screenShareManager = screenShareManager,
+        )
+    }
+
     val localStateService: LocalStateService by lazy {
         LocalStateService(localStateRepository)
     }
@@ -176,6 +198,7 @@ class ParentoApplication : Application() {
             ),
         )
 
+        screenShareManager
         initialize()
         logger.log(LogLevel.INFO, "Parento Managed startup orchestration started.")
     }

@@ -101,7 +101,7 @@ class LocalStateRepositoryInstrumentedTest {
 
     @Test
     fun updateEnrollmentState_rejectsInvalidTransition() = runBlocking {
-        val result = repository.updateEnrollmentState(EnrollmentState.CONNECTED)
+        val result = repository.updateEnrollmentState(EnrollmentState.REVOKED)
 
         assertEquals(OperationResult.Failure(ManagedError.INVALID_STATE), result)
         assertEquals(

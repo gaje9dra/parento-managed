@@ -25,7 +25,10 @@ class CommandSafetyTest {
     )
 
     @Test fun expiredCommandIsRejected() {
-        val result = DefaultCommandValidator({ command.managedDeviceId }) { 2_001L }.validate(command)
+        val result = DefaultCommandValidator(
+            expectedManagedDeviceId = { command.managedDeviceId },
+            nowEpochMillis = { 2_001L },
+        ).validate(command)
         assertEquals(ManagedError.INVALID_STATE, (result as OperationResult.Failure).error)
     }
 
