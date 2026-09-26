@@ -27,11 +27,12 @@ class ManagedCommandRuntime(
         }
 
     suspend fun process(command: TransportCommand): OperationResult<CommandResult> {
+        val expectedManagedDeviceId = sessionManager.currentManagedDeviceId()
         val processor = CommandProcessor(
             dao = dao,
             transport = sessionManager.transportBoundary(),
             sessionTokenProvider = { sessionManager.currentSessionToken() },
-            validator = DefaultCommandValidator { sessionManager.currentManagedDeviceId() },
+            validator = DefaultCommandValidator(expectedManagedDeviceId = { expectedManagedDeviceId }),
             authorization = AllowlistedCommandAuthorization(handlers),
             handlers = handlers,
         )
