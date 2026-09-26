@@ -60,6 +60,7 @@ class ScreenShareManager(
             return Result.failure(IllegalStateException("No matching screen-sharing authorization request exists."))
         }
 
+        publish(ScreenCaptureState.AUTHORIZED, sessionId)
         publish(ScreenCaptureState.STARTING, sessionId)
         val serviceIntent = Intent(activity, ScreenCaptureForegroundService::class.java).apply {
             action = ScreenCaptureForegroundService.ACTION_START
@@ -97,6 +98,18 @@ class ScreenShareManager(
     }
 
     fun publish(state: ScreenCaptureState, sessionId: String?, error: String? = null) {
+        val current = ScreenCaptureRuntime.snapshot()
+        if (!ScreenCaptureStateMachine.canTransition(current.state, state)) {
+            val invalid = ScreenCaptureSnapshot(
+                state = ScreenCaptureState.FAILED,
+                sessionId = sessionId ?: current.sessionId,
+                updatedAtEpochMillis = System.currentTimeMillis(),
+                errorCategory = "INVALID_STATE_TRANSITION",
+            )
+            stateStore.write(invalid)
+            ScreenCaptureRuntime.publish(invalid)
+            return
+        }
         val snapshot = ScreenCaptureSnapshot(
             state = state,
             sessionId = sessionId,
