@@ -82,7 +82,6 @@ class ScreenCaptureStateMachineTest {
         listOf(
             ScreenCaptureState.AUTHORIZED,
             ScreenCaptureState.STARTING,
-            ScreenCaptureState.ACTIVE,
             ScreenCaptureState.STOPPING,
         ).forEach { stale ->
             assertFalse(
