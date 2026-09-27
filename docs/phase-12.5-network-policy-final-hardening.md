@@ -127,10 +127,10 @@ Android provides Device Owner/Profile Owner APIs for configuring always-on VPN, 
 
 The repository has no Gradle wrapper. Use the repository-compatible Gradle/Android Studio environment:
 
-- ./gradlew test
-- ./gradlew lint
-- ./gradlew connectedDebugAndroidTest
-- ./gradlew assembleDebug
-- ./gradlew assembleRelease
+- gradle test
+- gradle lint
+- gradle connectedDebugAndroidTest
+- gradle assembleDebug
+- gradle assembleRelease
 
 Do not treat a command as passed unless it has actually executed successfully.
