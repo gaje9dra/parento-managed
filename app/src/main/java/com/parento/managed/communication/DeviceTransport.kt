@@ -70,6 +70,10 @@ interface DeviceTransport {
         observedAt: String,
     ): OperationResult<Unit>
     suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?>
+    suspend fun streamCommands(
+        sessionToken: String,
+        onCommand: suspend (TransportCommand) -> Unit,
+    ): OperationResult<Unit>
     suspend fun getApplicationPolicy(sessionToken: String): OperationResult<DeviceApplicationPolicyResponse>
     suspend fun uploadApplicationInventory(
         sessionToken: String,
@@ -157,6 +161,53 @@ class HttpsDeviceTransport(
 
     override suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?> =
         OperationResult.Success(null)
+
+    override suspend fun streamCommands(
+        sessionToken: String,
+        onCommand: suspend (TransportCommand) -> Unit,
+    ): OperationResult<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val endpoint = URL(baseUrl.trimEnd('/') + "/api/v1/device/stream")
+            if (requireHttps && endpoint.protocol != "https") {
+                return@withContext OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
+            }
+            val connection = endpoint.openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 0
+                connection.useCaches = false
+                connection.setRequestProperty("Accept", "text/event-stream")
+                connection.setRequestProperty("Authorization", "Bearer $sessionToken")
+                val status = connection.responseCode
+                if (status !in 200..299) return@withContext mapFailure(status)
+
+                var eventName: String? = null
+                var dataLine: String? = null
+                connection.inputStream.bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    for (line in lines) {
+                        when {
+                            line.startsWith("event:") -> eventName = line.removePrefix("event:").trim()
+                            line.startsWith("data:") -> dataLine = line.removePrefix("data:").trim()
+                            line.isEmpty() -> {
+                                if (eventName == "command" && !dataLine.isNullOrBlank()) {
+                                    onCommand(parseCommand(dataLine!!))
+                                }
+                                eventName = null
+                                dataLine = null
+                            }
+                        }
+                    }
+                }
+                OperationResult.Success(Unit)
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrElse {
+            if (it is IOException) OperationResult.Failure(ManagedError.NETWORK_FAILURE)
+            else OperationResult.Failure(ManagedError.UNKNOWN)
+        }
+    }
 
     override suspend fun getApplicationPolicy(
         sessionToken: String,
@@ -279,6 +330,36 @@ class HttpsDeviceTransport(
             if (it is IOException) OperationResult.Failure(ManagedError.NETWORK_FAILURE)
             else OperationResult.Failure(ManagedError.UNKNOWN)
         }
+    }
+
+    private fun parseCommand(json: String): TransportCommand {
+        val data = JSONObject(json)
+        val commandId = data.getString("commandId").trim()
+        val managedDeviceId = data.getString("managedDeviceId").trim()
+        val type = data.getString("type").trim()
+        val version = data.getInt("version")
+        val payload = data.getJSONObject("payload").toString()
+        val correlationId = data.optString("correlationId").takeIf { it.isNotBlank() }
+        val idempotencyKey = data.optString("idempotencyKey").takeIf { it.isNotBlank() }
+        val createdAt = java.time.Instant.parse(data.getString("createdAt")).toEpochMilli()
+        val expiresAt = java.time.Instant.parse(data.getString("expiresAt")).toEpochMilli()
+        require(
+            isUuid(commandId) &&
+                isUuid(managedDeviceId) &&
+                version == 1 &&
+                expiresAt > createdAt,
+        )
+        return TransportCommand(
+            commandId = commandId,
+            managedDeviceId = managedDeviceId,
+            type = type,
+            version = version,
+            payload = payload,
+            correlationId = correlationId,
+            idempotencyKey = idempotencyKey,
+            createdAtEpochMillis = createdAt,
+            expiresAtEpochMillis = expiresAt,
+        )
     }
 
     private fun mapFailure(status: Int): OperationResult<Nothing> =
