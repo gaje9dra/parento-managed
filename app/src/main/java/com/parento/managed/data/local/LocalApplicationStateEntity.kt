@@ -27,6 +27,7 @@ data class LocalApplicationStateEntity(
     val acceptedApplicationPolicyVersion: Int? = null,
     val appliedApplicationPolicyId: String? = null,
     val appliedApplicationPolicyVersion: Int? = null,
+    val enforcedBlockedPackagesJson: String? = null,
     val applicationPolicySyncStatus: String = "NONE",
     val applicationEnforcementStatus: String = "UNKNOWN",
 ) {
