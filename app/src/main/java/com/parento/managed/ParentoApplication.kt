@@ -263,14 +263,17 @@ class ParentoApplication : Application() {
 
         screenShareManager
         applicationScope.launch {
+            var previousEnrollmentState: com.parento.managed.domain.EnrollmentState? = null
             localStateRepository.observe().collect { stateResult ->
                 screenShareManager.enforceAuthorization()
-                if (stateResult is OperationResult.Success &&
-                    stateResult.value?.enrollmentState == com.parento.managed.domain.EnrollmentState.REVOKED
+                val enrollmentState = (stateResult as? OperationResult.Success)?.value?.enrollmentState
+                if (enrollmentState == com.parento.managed.domain.EnrollmentState.REVOKED &&
+                    previousEnrollmentState != com.parento.managed.domain.EnrollmentState.REVOKED
                 ) {
                     networkPolicySyncScheduler.cancel()
                     networkPolicySynchronizer.handleRevocation()
                 }
+                previousEnrollmentState = enrollmentState
             }
         }
         initialize()
