@@ -166,7 +166,6 @@ class LocalStateServiceTest {
         }
         override suspend fun updateEnrollmentState(state: EnrollmentState) = OperationResult.Success(Unit)
         override suspend fun updateConnectionState(state: ConnectionState) = OperationResult.Success(Unit)
-    }
         override suspend fun updateApplicationInventorySync(
             status: com.parento.managed.application.ApplicationInventorySyncStatus,
             observedAtEpochMillis: Long?,
@@ -183,4 +182,5 @@ class LocalStateServiceTest {
         override suspend fun updateApplicationPolicySyncStatus(
             status: com.parento.managed.application.ApplicationPolicySyncStatus,
         ): OperationResult<Unit> = OperationResult.Success(Unit)
+    }
 }
