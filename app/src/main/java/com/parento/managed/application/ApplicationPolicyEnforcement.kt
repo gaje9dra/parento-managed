@@ -170,24 +170,31 @@ class ApplicationEnforcementEngine(
         var attempted = 0
         var succeeded = 0
         var failed = 0
+        val resultingManagedBlockedPackages = evaluation.targets
+            .filter { it.managedByParento && it.desiredAction == ApplicationDesiredAction.BLOCK && it.currentlySuspended }
+            .map { it.packageName }
+            .toMutableSet()
+
         for (target in evaluation.targets) {
             if (!target.managedByParento || (target.desiredAction == ApplicationDesiredAction.BLOCK) == target.currentlySuspended) {
                 continue
             }
             attempted++
+            val shouldSuspend = target.desiredAction == ApplicationDesiredAction.BLOCK
             val ok = runCatching {
-                platform.setSuspended(
-                    target.packageName,
-                    target.desiredAction == ApplicationDesiredAction.BLOCK,
-                )
+                platform.setSuspended(target.packageName, shouldSuspend)
             }.getOrDefault(false)
-            if (ok) succeeded else failed++
+            if (ok) {
+                succeeded++
+                if (shouldSuspend) {
+                    resultingManagedBlockedPackages += target.packageName
+                } else {
+                    resultingManagedBlockedPackages -= target.packageName
+                }
+            } else {
+                failed++
+            }
         }
-
-        val resultingManagedBlockedPackages = evaluation.targets
-            .filter { it.managedByParento && it.desiredAction == ApplicationDesiredAction.BLOCK }
-            .map { it.packageName }
-            .toSet()
 
         return ApplicationEnforcementOutcome(
             policyId = policyId,
