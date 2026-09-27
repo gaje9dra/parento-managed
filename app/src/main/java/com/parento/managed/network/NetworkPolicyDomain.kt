@@ -3,7 +3,7 @@ package com.parento.managed.network
 import java.util.Locale
 
 object NetworkPolicyDomain {
-    private const val MAX_HOSTNAME_LENGTH = 255
+    private const val MAX_HOSTNAME_LENGTH = 253
     private val labelPattern = Regex("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
     fun normalize(input: String): String? {
