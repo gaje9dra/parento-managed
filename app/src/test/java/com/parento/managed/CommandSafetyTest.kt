@@ -10,6 +10,7 @@ import com.parento.managed.domain.OperationResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.UUID
 
 class CommandSafetyTest {
     private val command = ManagedCommand(
@@ -50,6 +51,30 @@ class CommandSafetyTest {
         assertEquals(CommandExecutionState.FAILED, (result as OperationResult.Success).value.state)
     }
 
+    @Test
+    fun audioCommandRequiresExactSessionPayloadAndDeterministicIdempotency() {
+        val audioSessionId = UUID.randomUUID().toString()
+        val audio = command.copy(
+            commandId = UUID.randomUUID().toString(),
+            managedDeviceId = UUID.randomUUID().toString(),
+            commandType = "START_AUDIO_ACCESS",
+            payloadJson = """{"audioSessionId":"$audioSessionId"}""",
+            idempotencyKey = "audio-session:$audioSessionId:START_AUDIO_ACCESS",
+            createdAtEpochMillis = 1_000_000L,
+            expiresAtEpochMillis = 2_000_000L,
+        )
+        assertTrue(DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500_000L }).validate(audio) is OperationResult.Success)
+        assertTrue(
+            DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500_000L }).validate(
+                audio.copy(idempotencyKey = "wrong-key"),
+            ) is OperationResult.Failure,
+        )
+        assertTrue(
+            DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500_000L }).validate(
+                audio.copy(payloadJson = """{"audioSessionId":"$audioSessionId","extra":"x"}"""),
+            ) is OperationResult.Failure,
+        )
+    }
     @Test fun malformedCommandTypeIsRejected() {
         val result = DefaultCommandValidator({ command.managedDeviceId }).validate(command.copy(commandType = ""))
         assertEquals(ManagedError.INVALID_STATE, (result as OperationResult.Failure).error)
