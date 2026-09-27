@@ -95,7 +95,7 @@ class ApplicationPolicyEnforcementTest {
         installed: List<Pair<String, Boolean>>,
         private val mode: ManagementMode = ManagementMode.DEVICE_OWNER,
     ) : ApplicationEnforcementPlatform {
-        private val installedState = installed.toMutableMap()
+        private val installedState: MutableMap<String, Boolean> = installed.toMap().toMutableMap()
         val suspended = mutableSetOf<String>()
 
         init {
