@@ -18,6 +18,7 @@ data class ApplicationEnforcementTarget(
     val packageName: String,
     val desiredAction: ApplicationDesiredAction,
     val currentlySuspended: Boolean,
+    val managedByParento: Boolean,
 )
 
 data class ApplicationEvaluation(
@@ -29,6 +30,7 @@ class ApplicationPolicyEvaluator {
         installedPackages: List<Pair<String, Boolean>>,
         rules: List<ApplicationPolicyRule>,
         managedPackageName: String,
+        previouslyManagedBlockedPackages: Set<String> = emptySet(),
     ): ApplicationEvaluation {
         val ruleMap = LinkedHashMap<String, ApplicationDesiredAction>()
         for (rule in rules.sortedBy { it.packageName }) {
@@ -53,6 +55,7 @@ class ApplicationPolicyEvaluator {
                             else -> ApplicationDesiredAction.ALLOW
                         },
                         currentlySuspended = suspended,
+                        managedByParento = packageName in ruleMap || packageName in previouslyManagedBlockedPackages,
                     )
                 }
                 .toList(),
@@ -155,6 +158,7 @@ class ApplicationEnforcementEngine(
                 platform.installedPackagesWithSuspensionState(),
                 rules,
                 managedPackageName,
+                previouslyManagedBlockedPackages,
             )
         }.getOrElse {
             return ApplicationEnforcementOutcome(
@@ -167,7 +171,7 @@ class ApplicationEnforcementEngine(
         var succeeded = 0
         var failed = 0
         for (target in evaluation.targets) {
-            if ((target.desiredAction == ApplicationDesiredAction.BLOCK) == target.currentlySuspended) {
+            if (!target.managedByParento || (target.desiredAction == ApplicationDesiredAction.BLOCK) == target.currentlySuspended) {
                 continue
             }
             attempted++
@@ -181,7 +185,7 @@ class ApplicationEnforcementEngine(
         }
 
         val resultingManagedBlockedPackages = evaluation.targets
-            .filter { it.desiredAction == ApplicationDesiredAction.BLOCK }
+            .filter { it.managedByParento && it.desiredAction == ApplicationDesiredAction.BLOCK }
             .map { it.packageName }
             .toSet()
 
