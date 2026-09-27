@@ -146,6 +146,14 @@ class NetworkPolicySynchronizer(
     ): OperationResult<NetworkPolicyEnforcementResult> {
         val written = stateRepository.write(state)
         if (written is OperationResult.Failure) return written
+        transport.reportNetworkPolicyStatus(
+            sessionToken = sessionTokenProvider(),
+            policyId = state.desiredPolicyId,
+            policyVersion = state.desiredPolicyVersion,
+            status = result.status,
+            reportedAtEpochMillis = nowEpochMillis(),
+            errorCode = result.errorCode,
+        )
         return OperationResult.Success(result)
     }
 
