@@ -2,7 +2,6 @@ package com.parento.managed.communication
 
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
-import com.parento.managed.network.NetworkCapabilityMode
 import com.parento.managed.network.NetworkEnforcementStatus
 import com.parento.managed.network.NetworkPolicy
 import com.parento.managed.network.NetworkPolicyCapability
