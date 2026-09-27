@@ -54,6 +54,7 @@ interface ManagedDeviceStateRepository {
         policyVersion: Int?,
         syncStatus: ApplicationPolicySyncStatus,
         enforcementStatus: ApplicationEnforcementStatus,
+        enforcedBlockedPackagesJson: String? = null,
     ): OperationResult<Unit>
     suspend fun updateApplicationEnforcementStatus(
         status: ApplicationEnforcementStatus,
