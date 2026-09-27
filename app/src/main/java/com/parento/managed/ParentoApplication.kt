@@ -259,8 +259,13 @@ class ParentoApplication : Application() {
 
         screenShareManager
         applicationScope.launch {
-            localStateRepository.observe().collect {
+            localStateRepository.observe().collect { stateResult ->
                 screenShareManager.enforceAuthorization()
+                if (stateResult is OperationResult.Success &&
+                    stateResult.value?.enrollmentState == com.parento.managed.domain.EnrollmentState.REVOKED
+                ) {
+                    networkPolicyStateRepository.markRevoked()
+                }
             }
         }
         initialize()
