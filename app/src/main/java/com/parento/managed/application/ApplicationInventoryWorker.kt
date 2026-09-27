@@ -30,10 +30,10 @@ class ApplicationInventoryWorker(
                         ManagedError.AUTHORIZATION_FAILURE -> BackgroundWorkFailureClass.AUTHORIZATION
                         else -> BackgroundWorkFailureClass.PERMANENT
                     }
-                    if (retryPolicy.decide(failureClass, runAttemptCount).retry) {
-                        application.applicationPolicySynchronizer.reconcileStoredPolicy()
-                        return Result.retry()
-                    }
+                    application.applicationPolicySynchronizer.reconcileStoredPolicy()
+                    return if (
+                        retryPolicy.decide(failureClass, runAttemptCount).retry
+                    ) Result.retry() else Result.failure()
                 }
             }
         } else {
