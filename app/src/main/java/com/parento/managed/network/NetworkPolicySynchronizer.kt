@@ -239,5 +239,6 @@ class NetworkPolicySynchronizer(
         }
     }
 
-$marker
+    private fun isUuid(value: String): Boolean =
+        runCatching { UUID.fromString(value) }.isSuccess
 }
