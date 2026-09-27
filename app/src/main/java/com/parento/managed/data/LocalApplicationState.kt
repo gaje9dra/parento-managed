@@ -36,6 +36,7 @@ data class LocalApplicationState(
     val acceptedApplicationPolicyVersion: Int? = null,
     val appliedApplicationPolicyId: String? = null,
     val appliedApplicationPolicyVersion: Int? = null,
+    val enforcedBlockedPackagesJson: String? = null,
     val applicationPolicySyncStatus: ApplicationPolicySyncStatus = ApplicationPolicySyncStatus.NONE,
     val applicationEnforcementStatus: ApplicationEnforcementStatus = ApplicationEnforcementStatus.UNKNOWN,
 )
