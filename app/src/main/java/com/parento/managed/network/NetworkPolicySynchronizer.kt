@@ -8,6 +8,7 @@ class NetworkPolicySynchronizer(
     private val transport: DeviceTransport,
     private val stateRepository: NetworkPolicyStateRepository,
     private val enforcer: NetworkPolicyEnforcer,
+    private val sessionTokenProvider: () -> String,
     private val nowEpochMillis: () -> Long = { System.currentTimeMillis() },
 ) {
     suspend fun synchronize(expectedPolicyId: String?, expectedPolicyVersion: Long?): OperationResult<NetworkPolicyEnforcementResult> {
@@ -32,7 +33,7 @@ class NetworkPolicySynchronizer(
             ),
         )
         val capabilityReport = transport.reportNetworkPolicyCapability(
-            sessionToken = currentSessionTokenPlaceholder,
+            sessionToken = sessionTokenProvider(),
             capability = capability,
         )
         if (capabilityReport is OperationResult.Failure) {
@@ -148,15 +149,6 @@ class NetworkPolicySynchronizer(
         return OperationResult.Success(result)
     }
 
-    // The runtime supplies the authenticated session token through a scoped transport wrapper.
-    private val currentSessionTokenPlaceholder: String
-        get() = sessionTokenProvider()
-
-    private var sessionTokenProvider: () -> String = { "" }
-
-    fun bindSessionTokenProvider(provider: () -> String) {
-        sessionTokenProvider = provider
-    }
 
     private fun isUuid(value: String): Boolean =
         runCatching { UUID.fromString(value) }.isSuccess
