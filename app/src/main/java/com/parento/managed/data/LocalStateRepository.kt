@@ -273,7 +273,7 @@ class RoomLocalStateRepository(
         policyVersion: Int?,
         syncStatus: ApplicationPolicySyncStatus,
         enforcementStatus: ApplicationEnforcementStatus,
-        enforcedBlockedPackagesJson: String? = null,
+        enforcedBlockedPackagesJson: String?,
     ): OperationResult<Unit> = stateMutex.withLock {
         runStorageOperation {
             val current = dao.read()?.toDomain() ?: LocalApplicationState()
