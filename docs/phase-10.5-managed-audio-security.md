@@ -104,3 +104,8 @@ Only bounded in-memory frame buffers exist inside the capture path.
 ## Phase status
 
 The Managed-side security/reliability hardening is implemented, but full Phase 10 live-audio completion remains blocked until the backend/client contract defines a production audio-byte transport. No speculative media transport is introduced in this phase.
+
+
+## Verification note
+
+Audio command payload validation requires the exact `audioSessionId` key set and the deterministic session idempotency key before command processing.
