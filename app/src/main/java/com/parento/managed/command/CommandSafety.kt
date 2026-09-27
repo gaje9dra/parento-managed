@@ -70,7 +70,7 @@ class DenyByDefaultCommandAuthorization : CommandAuthorization {
 }
 
 private val AUDIO_SESSION_PAYLOAD_PATTERN = Regex(
-    """^\\{"audioSessionId":"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})"\\}$""",
+    """^\{"audioSessionId":"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})"\}$""",
 )
 
 private fun isUuid(value: String): Boolean =
