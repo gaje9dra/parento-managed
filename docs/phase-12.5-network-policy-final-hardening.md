@@ -28,6 +28,7 @@ No partial mechanism is claimed because no supported hostname-filtering mechanis
 - Exact hostnames or explicit leading *.example.com wildcards.
 - Normalized lowercase domains.
 - Duplicate normalized domains rejected.
+- Maximum 500 rules are accepted client-side, matching the backend Phase 12 policy limit.
 - Wildcard matches subdomains but not the apex.
 - Malformed URLs, paths, ports, embedded wildcards, invalid labels, and oversized hostnames rejected.
 
@@ -35,7 +36,7 @@ Backend validation remains authoritative.
 
 ## Version safety
 
-The device never replaces a retained desired policy with an older server policy.
+The device never replaces a retained desired policy with an older server policy for the same policy identity. A different policy assignment may legitimately start at a lower version because versions are scoped to the policy ID.
 
 For a SYNC_NETWORK_POLICY command, the requested policy ID/version must match the authoritative policy fetched through the authenticated device session. A mismatch is reported as STALE.
 
@@ -117,6 +118,10 @@ A physical Android Enterprise test device is required for real platform verifica
 16. Confirm no browsing or traffic history is generated.
 
 These manual tests are a verification plan, not claimed executions, because a provisioned Android Enterprise device is not available in the repository tool environment.
+
+## Platform reference
+
+Android provides Device Owner/Profile Owner APIs for configuring always-on VPN, but hostname-level filtering would require an actual VPN enforcement service. This Phase 12.5 implementation does not introduce traffic interception or a VPN filter, so it reports hostname/network filtering as UNSUPPORTED rather than implying that DevicePolicyManager alone provides universal website blocking.
 
 ## Verification commands
 
