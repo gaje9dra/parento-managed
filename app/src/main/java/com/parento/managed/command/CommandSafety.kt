@@ -21,13 +21,12 @@ class DefaultCommandValidator(
         runCatching { JSONObject(command.payloadJson) }.getOrElse { return reject() }
 
         if (command.commandType == "START_AUDIO_ACCESS" || command.commandType == "STOP_AUDIO_ACCESS") {
-            val audioSessionId = runCatching {
-                val payload = JSONObject(command.payloadJson)
-                val keys = payload.keys().asSequence().toSet()
-                if (keys != setOf("audioSessionId")) return@runCatching null
-                val value = payload.optString("audioSessionId", "")
-                if (!isUuid(value)) null else value
-            }.getOrNull() ?: return reject()
+            val audioSessionId = AUDIO_SESSION_PAYLOAD_PATTERN
+                .matchEntire(command.payloadJson.trim())
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.takeIf(::isUuid)
+                ?: return reject()
 
             val expectedKey = "audio-session:$audioSessionId:" + command.commandType
             if (command.idempotencyKey != expectedKey) return reject()
@@ -69,6 +68,10 @@ class DenyByDefaultCommandAuthorization : CommandAuthorization {
     override fun authorize(command: ManagedCommand): OperationResult<Unit> =
         OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
 }
+
+private val AUDIO_SESSION_PAYLOAD_PATTERN = Regex(
+    """^\\{"audioSessionId":"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})"\\}$""",
+)
 
 private fun isUuid(value: String): Boolean =
     runCatching { java.util.UUID.fromString(value) }.isSuccess
