@@ -23,7 +23,10 @@ data class LocalApplicationStateEntity(
     val lastApplicationInventorySuccessfulSyncAtEpochMillis: Long? = null,
     val desiredApplicationPolicyId: String? = null,
     val desiredApplicationPolicyVersion: Int? = null,
+    val desiredApplicationPolicyRulesJson: String? = null,
     val acceptedApplicationPolicyVersion: Int? = null,
+    val appliedApplicationPolicyId: String? = null,
+    val appliedApplicationPolicyVersion: Int? = null,
     val applicationPolicySyncStatus: String = "NONE",
     val applicationEnforcementStatus: String = "UNKNOWN",
 ) {
