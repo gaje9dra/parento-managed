@@ -115,7 +115,7 @@ class AndroidDeviceManagementManager(
         }
 
         return platformCapabilities + listOf(
-            // These operations are intentionally not implemented in Phase 4.2.
+            // These capabilities are evaluated against the actual Android management state.
             CapabilityState(
                 DeviceManagementCapability.POLICY_SUPPORT,
                 when {
@@ -136,6 +136,7 @@ class AndroidDeviceManagementManager(
                 DeviceManagementCapability.APP_MANAGEMENT_CAPABILITY,
                 when {
                     detection.error != null -> CapabilityStatus.ERROR
+                    managed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N -> CapabilityStatus.AVAILABLE
                     managed -> CapabilityStatus.NOT_SUPPORTED
                     else -> CapabilityStatus.REQUIRES_AUTHORIZATION
                 },
