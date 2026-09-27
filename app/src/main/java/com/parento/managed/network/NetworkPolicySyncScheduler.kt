@@ -5,6 +5,7 @@ import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import com.parento.managed.background.BackgroundRetryPolicy
 import androidx.work.WorkManager
 
 class NetworkPolicySyncScheduler(context: Context) {
@@ -12,6 +13,11 @@ class NetworkPolicySyncScheduler(context: Context) {
 
     fun schedule() {
         val request = OneTimeWorkRequestBuilder<NetworkPolicySyncWorker>()
+            .setBackoffCriteria(
+                BackgroundRetryPolicy.workManagerBackoffPolicy,
+                BackgroundRetryPolicy.workManagerBackoffDelay.first,
+                BackgroundRetryPolicy.workManagerBackoffDelay.second,
+            )
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
