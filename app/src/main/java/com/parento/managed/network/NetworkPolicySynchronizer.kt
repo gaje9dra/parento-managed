@@ -108,7 +108,10 @@ class NetworkPolicySynchronizer(
             )
         }
 
-        if (current.desiredPolicyVersion != null && policy.version < current.desiredPolicyVersion) {
+        if (current.desiredPolicyId == policy.policyId &&
+            current.desiredPolicyVersion != null &&
+            policy.version < current.desiredPolicyVersion
+        ) {
             return finish(
                 current.copy(
                     enforcementStatus = NetworkEnforcementStatus.STALE,
