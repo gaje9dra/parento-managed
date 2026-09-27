@@ -51,7 +51,6 @@ class AudioStartCommandHandler(private val manager: AudioAccessManager) : Comman
                 ),
             )
         }
-        }
         if (!manager.mediaTransportAvailable()) {
             return OperationResult.Success(
                 CommandResult(
