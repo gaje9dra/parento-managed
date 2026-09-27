@@ -226,6 +226,17 @@ class ParentoApplication : Application() {
             context = this,
             onChanged = { availability ->
                 logger.log(LogLevel.DEBUG, "Network availability observed: $availability.")
+                if (availability) {
+                    applicationScope.launch {
+                        if (_initializationState.value.status == InitializationStatus.READY &&
+                            localStateRepository.getEnrollmentState() is OperationResult.Success &&
+                            (localStateRepository.getEnrollmentState() as OperationResult.Success).value == com.parento.managed.domain.EnrollmentState.ENROLLED
+                        ) {
+                            ensureConnectedForBackgroundWork()
+                            networkPolicySynchronizer.synchronize(null, null)
+                        }
+                    }
+                }
             },
             logger = logger,
         )
@@ -238,6 +249,7 @@ class ParentoApplication : Application() {
                         applicationScope.launch {
                             refreshManagementState()
                             deviceCommunicationSessionManager.heartbeat()
+                            networkPolicySynchronizer.synchronize(null, null)
                         }
                     }
                 },
@@ -278,7 +290,9 @@ class ParentoApplication : Application() {
             if (result is OperationResult.Success) {
                 deviceCommunicationSessionManager.recover()
                 if (result.value.enrollmentState == com.parento.managed.domain.EnrollmentState.ENROLLED) {
-                    deviceCommunicationSessionManager.connect()
+                    if (deviceCommunicationSessionManager.connect() is OperationResult.Success) {
+                        networkPolicySynchronizer.synchronize(null, null)
+                    }
                 }
                 logger.log(LogLevel.INFO, "Managed-device initialization completed.")
             } else {
