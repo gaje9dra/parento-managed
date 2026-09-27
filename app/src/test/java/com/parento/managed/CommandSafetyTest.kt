@@ -10,6 +10,7 @@ import com.parento.managed.domain.OperationResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.UUID
 
 class CommandSafetyTest {
     private val command = ManagedCommand(
@@ -52,8 +53,10 @@ class CommandSafetyTest {
 
     @Test
     fun audioCommandRequiresExactSessionPayloadAndDeterministicIdempotency() {
-        val audioSessionId = "550e8400-e29b-41d4-a716-446655440099"
+        val audioSessionId = UUID.randomUUID().toString()
         val audio = command.copy(
+            commandId = UUID.randomUUID().toString(),
+            managedDeviceId = UUID.randomUUID().toString(),
             commandType = "START_AUDIO_ACCESS",
             payloadJson = """{"audioSessionId":"$audioSessionId"}""",
             idempotencyKey = "audio-session:$audioSessionId:START_AUDIO_ACCESS",
