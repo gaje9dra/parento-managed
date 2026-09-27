@@ -12,9 +12,26 @@ class NetworkPolicySynchronizer(
     private val nowEpochMillis: () -> Long = { System.currentTimeMillis() },
 ) {
     suspend fun synchronize(expectedPolicyId: String?, expectedPolicyVersion: Long?): OperationResult<NetworkPolicyEnforcementResult> {
-        val current = when (val result = stateRepository.read()) {
+        var current = when (val result = stateRepository.read()) {
             is OperationResult.Failure -> return result
             is OperationResult.Success -> result.value
+        }
+
+        // A REVOKED state belongs to the previous enrollment and must never
+        // make an older policy authoritative after re-enrollment.
+        if (current.enforcementStatus == NetworkEnforcementStatus.REVOKED) {
+            current = current.copy(
+                desiredPolicyId = null,
+                desiredPolicyVersion = null,
+                desiredPolicyJson = null,
+                appliedPolicyId = null,
+                appliedPolicyVersion = null,
+                enforcementStatus = NetworkEnforcementStatus.UNKNOWN,
+                pendingSynchronization = false,
+                lastErrorCode = null,
+            )
+            val cleared = stateRepository.write(current)
+            if (cleared is OperationResult.Failure) return cleared
         }
 
         if (expectedPolicyId != null && !isUuid(expectedPolicyId)) {
@@ -99,6 +116,24 @@ class NetworkPolicySynchronizer(
                     lastErrorCode = "STALE_POLICY",
                 ),
                 NetworkPolicyEnforcementResult(NetworkEnforcementStatus.STALE, false, "STALE_POLICY"),
+            )
+        }
+
+        if (policy.status == NetworkPolicyStatus.DISABLED) {
+            val removal = enforcer.remove(current.appliedPolicyId)
+            return finish(
+                current.copy(
+                    desiredPolicyId = policy.policyId,
+                    desiredPolicyVersion = policy.version,
+                    desiredPolicyJson = NetworkPolicyJson.encode(policy),
+                    appliedPolicyId = if (removal.applied) null else current.appliedPolicyId,
+                    appliedPolicyVersion = if (removal.applied) null else current.appliedPolicyVersion,
+                    enforcementStatus = removal.status,
+                    pendingSynchronization = false,
+                    lastSynchronizedAtEpochMillis = nowEpochMillis(),
+                    lastErrorCode = removal.errorCode,
+                ),
+                removal,
             )
         }
 
@@ -189,6 +224,20 @@ class NetworkPolicySynchronizer(
     }
 
 
-    private fun isUuid(value: String): Boolean =
-        runCatching { UUID.fromString(value) }.isSuccess
+    suspend fun handleRevocation(): OperationResult<Unit> {
+        val current = when (val result = stateRepository.read()) {
+            is OperationResult.Failure -> return result
+            is OperationResult.Success -> result.value
+        }
+        val removal = enforcer.remove(current.appliedPolicyId)
+        val marked = stateRepository.markRevoked()
+        if (marked is OperationResult.Failure) return marked
+        return if (removal.applied || removal.status == NetworkEnforcementStatus.UNSUPPORTED) {
+            OperationResult.Success(Unit)
+        } else {
+            OperationResult.Failure(com.parento.managed.domain.ManagedError.POLICY_FAILURE)
+        }
+    }
+
+$marker
 }
