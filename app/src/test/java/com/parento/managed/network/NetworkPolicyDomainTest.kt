@@ -55,6 +55,25 @@ class NetworkPolicyDomainTest {
         )
     }
 
+    @Test
+    fun policySerializationIsDeterministicAndEscapesJsonStrings() {
+        val policy = NetworkPolicy(
+            policyId = "550e8400-e29b-41d4-a716-446655440000",
+            version = 2L,
+            status = NetworkPolicyStatus.ACTIVE,
+            name = "A \"policy\"",
+            description = "line\nnext",
+            rules = listOf(
+                NetworkPolicyRule("550e8400-e29b-41d4-a716-446655440001", "example.com", NetworkRuleAction.BLOCK, true),
+            ),
+            receivedAtEpochMillis = 1L,
+        )
+        val json = NetworkPolicyJson.encode(policy)
+        assertTrue(json.contains("\\\"policy\\\""))
+        assertTrue(json.contains("\\n"))
+        assertTrue(json.contains("\"version\":2"))
+    }
+
     private class FakeManagementManager(
         private val detection: ManagementDetectionResult,
     ) : DeviceManagementManager {
