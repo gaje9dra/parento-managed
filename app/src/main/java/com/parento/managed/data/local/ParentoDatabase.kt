@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [LocalApplicationStateEntity::class, ManagedCommandEntity::class, MonitoringSnapshotEntity::class, LocationStateEntity::class],
-    version = 9,
+    entities = [LocalApplicationStateEntity::class, ManagedCommandEntity::class, MonitoringSnapshotEntity::class, LocationStateEntity::class, NetworkPolicyStateEntity::class],
+    version = 10,
     exportSchema = false,
 )
 abstract class ParentoDatabase : RoomDatabase() {
@@ -17,6 +17,7 @@ abstract class ParentoDatabase : RoomDatabase() {
     abstract fun managedCommandDao(): ManagedCommandDao
     abstract fun monitoringSnapshotDao(): MonitoringSnapshotDao
     abstract fun locationStateDao(): LocationStateDao
+    abstract fun networkPolicyStateDao(): NetworkPolicyStateDao
 
     companion object {
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
@@ -105,8 +106,28 @@ abstract class ParentoDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""CREATE TABLE network_policy_state (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    desiredPolicyId TEXT,
+                    desiredPolicyVersion INTEGER,
+                    desiredPolicyJson TEXT,
+                    appliedPolicyId TEXT,
+                    appliedPolicyVersion INTEGER,
+                    enforcementStatus TEXT NOT NULL DEFAULT 'UNKNOWN',
+                    capabilityMode TEXT NOT NULL DEFAULT 'UNKNOWN',
+                    capabilitySupported INTEGER NOT NULL DEFAULT 0,
+                    capabilityVersion INTEGER,
+                    lastSynchronizedAtEpochMillis INTEGER,
+                    pendingSynchronization INTEGER NOT NULL DEFAULT 0,
+                    lastErrorCode TEXT
+                )""".trimIndent())
+            }
+        }
+
         fun builder(context: Context): RoomDatabase.Builder<ParentoDatabase> =
             Room.databaseBuilder(context.applicationContext, ParentoDatabase::class.java, "parento-managed.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
     }
 }
