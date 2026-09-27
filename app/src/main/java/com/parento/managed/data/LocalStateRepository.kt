@@ -367,6 +367,7 @@ private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState {
         acceptedApplicationPolicyVersion = acceptedApplicationPolicyVersion,
         appliedApplicationPolicyId = appliedApplicationPolicyId,
         appliedApplicationPolicyVersion = appliedApplicationPolicyVersion,
+        enforcedBlockedPackagesJson = enforcedBlockedPackagesJson,
         applicationPolicySyncStatus = runCatching {
             ApplicationPolicySyncStatus.valueOf(applicationPolicySyncStatus)
         }.getOrElse { throw IllegalStateException("Invalid persisted application policy sync status.") },
