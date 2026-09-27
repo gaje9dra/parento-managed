@@ -148,6 +148,22 @@ class EnrollmentRepositoryTest {
             return OperationResult.Success(Unit)
         }
     }
+        override suspend fun updateApplicationInventorySync(
+            status: com.parento.managed.application.ApplicationInventorySyncStatus,
+            observedAtEpochMillis: Long?,
+            successfulSyncAtEpochMillis: Long?,
+        ): OperationResult<Unit> = OperationResult.Success(Unit)
+        override suspend fun updateApplicationPolicyReference(
+            policyId: String,
+            policyVersion: Int,
+            status: com.parento.managed.application.ApplicationPolicySyncStatus,
+        ): OperationResult<Unit> = OperationResult.Success(Unit)
+        override suspend fun updateApplicationEnforcementStatus(
+            status: com.parento.managed.application.ApplicationEnforcementStatus,
+        ): OperationResult<Unit> = OperationResult.Success(Unit)
+        override suspend fun updateApplicationPolicySyncStatus(
+            status: com.parento.managed.application.ApplicationPolicySyncStatus,
+        ): OperationResult<Unit> = OperationResult.Success(Unit)
 }
 
 
