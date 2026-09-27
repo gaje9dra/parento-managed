@@ -1,5 +1,7 @@
 package com.parento.managed.screenshare
 
+import com.parento.managed.application.ApplicationInventoryCommandHandler
+import com.parento.managed.application.ApplicationPolicyCommandHandler
 import com.parento.managed.command.AllowlistedCommandAuthorization
 import com.parento.managed.command.CommandProcessor
 import com.parento.managed.command.CommandResult
@@ -14,10 +16,14 @@ class ManagedCommandRuntime(
     private val dao: ManagedCommandDao,
     private val sessionManager: DeviceCommunicationSessionManager,
     screenShareManager: ScreenShareManager,
+    applicationInventorySync: com.parento.managed.application.ApplicationInventorySync,
+    localStateRepository: com.parento.managed.data.LocalStateRepository,
 ) {
     private val handlers = mapOf(
         "START_SCREEN_SHARE" to ScreenShareStartCommandHandler(screenShareManager),
         "STOP_SCREEN_SHARE" to ScreenShareStopCommandHandler(screenShareManager),
+        "REQUEST_APPLICATION_INVENTORY" to ApplicationInventoryCommandHandler(applicationInventorySync),
+        "SYNC_APPLICATION_POLICY" to ApplicationPolicyCommandHandler(localStateRepository),
     )
 
     suspend fun processNextCommand(): OperationResult<CommandResult?> =

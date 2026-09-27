@@ -18,6 +18,14 @@ data class LocalApplicationStateEntity(
     val managementMode: String = "NOT_MANAGED",
     val managementCapabilities: String = "",
     val managementStateUpdatedAtEpochMillis: Long? = null,
+    val applicationInventorySyncStatus: String = "NEVER_SYNCED",
+    val lastApplicationInventoryObservedAtEpochMillis: Long? = null,
+    val lastApplicationInventorySuccessfulSyncAtEpochMillis: Long? = null,
+    val desiredApplicationPolicyId: String? = null,
+    val desiredApplicationPolicyVersion: Int? = null,
+    val acceptedApplicationPolicyVersion: Int? = null,
+    val applicationPolicySyncStatus: String = "NONE",
+    val applicationEnforcementStatus: String = "UNKNOWN",
 ) {
     companion object {
         const val SINGLETON_ID = 1

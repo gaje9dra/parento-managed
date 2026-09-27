@@ -52,6 +52,14 @@ interface DeviceTransport {
         observedAt: String,
     ): OperationResult<Unit>
     suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?>
+    suspend fun uploadApplicationInventory(
+        sessionToken: String,
+        payloadJson: String,
+    ): OperationResult<Unit>
+    suspend fun reportApplicationEnforcement(
+        sessionToken: String,
+        payloadJson: String,
+    ): OperationResult<Unit>
 }
 
 class HttpsDeviceTransport(
@@ -131,6 +139,19 @@ class HttpsDeviceTransport(
     override suspend fun receiveNextCommand(sessionToken: String): OperationResult<TransportCommand?> =
         OperationResult.Success(null)
 
+    override suspend fun uploadApplicationInventory(
+        sessionToken: String,
+        payloadJson: String,
+    ): OperationResult<Unit> =
+        requestJson("/api/v1/device/applications/inventory", "POST", sessionToken, payloadJson) { Unit }
+
+    override suspend fun reportApplicationEnforcement(
+        sessionToken: String,
+        payloadJson: String,
+    ): OperationResult<Unit> =
+        requestJson("/api/v1/device/applications/enforcement-status", "POST", sessionToken, payloadJson) { Unit }
+
+
     private suspend fun <T> request(
         path: String,
         method: String,
@@ -162,6 +183,42 @@ class HttpsDeviceTransport(
                 } else {
                     OperationResult.Success(parse(responseBody))
                 }
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrElse {
+            if (it is IOException) OperationResult.Failure(ManagedError.NETWORK_FAILURE)
+            else OperationResult.Failure(ManagedError.UNKNOWN)
+        }
+    }
+
+    private suspend fun <T> requestJson(
+        path: String,
+        method: String,
+        bearer: String,
+        payloadJson: String,
+        parse: (String) -> T,
+    ): OperationResult<T> = withContext(Dispatchers.IO) {
+        runCatching {
+            val endpoint = URL(baseUrl.trimEnd('/') + path)
+            if (requireHttps && endpoint.protocol != "https") {
+                return@withContext OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
+            }
+            val connection = endpoint.openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = method
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 15_000
+                connection.useCaches = false
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Authorization", "Bearer $bearer")
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+                connection.outputStream.use { it.write(payloadJson.toByteArray(Charsets.UTF_8)) }
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val responseBody = stream?.bufferedReader()?.use { readBounded(it) }.orEmpty()
+                if (status !in 200..299) mapFailure(status) else OperationResult.Success(parse(responseBody))
             } finally {
                 connection.disconnect()
             }

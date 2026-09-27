@@ -54,4 +54,25 @@ class ParentoDatabaseMigrationTest {
         }
         database.close()
     }
+    @Test fun migrate8To9_addsApplicationManagementState() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name("parento-migration-test-v9")
+                .callback(object : SupportSQLiteOpenHelper.Callback(8) {
+                    override fun onCreate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                        database.execSQL("CREATE TABLE local_application_state (id INTEGER NOT NULL, stateVersion INTEGER NOT NULL, lastSynchronizationTimestamp INTEGER, initialized INTEGER NOT NULL, installationId TEXT, identityCreatedAtEpochMillis INTEGER, enrollmentState TEXT NOT NULL, managementMode TEXT NOT NULL, managementCapabilities TEXT NOT NULL, managementStateUpdatedAtEpochMillis INTEGER, connectionState TEXT NOT NULL, managedDeviceId TEXT, PRIMARY KEY(id))")
+                    }
+                    override fun onUpgrade(database: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                }).build(),
+        )
+        val database = helper.writableDatabase
+        ParentoDatabase.MIGRATION_8_9.migrate(database)
+        database.query(
+            "SELECT applicationInventorySyncStatus,applicationPolicySyncStatus,applicationEnforcementStatus FROM local_application_state LIMIT 1",
+        ).use { cursor ->
+            assertTrue(cursor.columnCount == 3)
+        }
+        database.close()
+    }
+
 }

@@ -20,7 +20,7 @@ android {
         buildConfigField("boolean", "PARENTO_FEATURE_LOCATION", "true")
         buildConfigField("boolean", "PARENTO_FEATURE_SCREEN_SHARING", "true")
         buildConfigField("boolean", "PARENTO_FEATURE_AUDIO", "false")
-        buildConfigField("boolean", "PARENTO_FEATURE_APPLICATION_MANAGEMENT", "false")
+        buildConfigField("boolean", "PARENTO_FEATURE_APPLICATION_MANAGEMENT", "true")
         buildConfigField("boolean", "PARENTO_FEATURE_WEBSITE_FILTERING", "false")
         buildConfigField("boolean", "PARENTO_FEATURE_DEVICE_RESTRICTIONS", "false")
     }
