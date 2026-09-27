@@ -23,8 +23,9 @@ class DefaultCommandValidator(
         if (command.commandType == "START_AUDIO_ACCESS" || command.commandType == "STOP_AUDIO_ACCESS") {
             val audioSessionId = runCatching {
                 val payload = JSONObject(command.payloadJson)
-                if (payload.length() != 1 || !payload.has("audioSessionId")) return@runCatching null
-                val value = payload.getString("audioSessionId")
+                val keys = payload.keys().asSequence().toSet()
+                if (keys != setOf("audioSessionId")) return@runCatching null
+                val value = payload.optString("audioSessionId", "")
                 if (!isUuid(value)) null else value
             }.getOrNull() ?: return reject()
 
