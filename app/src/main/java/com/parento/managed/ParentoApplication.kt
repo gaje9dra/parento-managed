@@ -40,6 +40,10 @@ import com.parento.managed.policy.DefaultPolicyEngine
 import com.parento.managed.screenshare.ManagedCommandRuntime
 import com.parento.managed.screenshare.ScreenShareManager
 import com.parento.managed.monitoring.*
+import com.parento.managed.network.AndroidNetworkPolicyEnforcer
+import com.parento.managed.network.NetworkPolicyStateRepository
+import com.parento.managed.network.NetworkPolicySynchronizer
+import com.parento.managed.network.RoomNetworkPolicyStateRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,6 +72,23 @@ class ParentoApplication : Application() {
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
+    }
+
+    private val deviceManagementManager by lazy {
+        AndroidDeviceManagementManager(AndroidDeviceManagementPlatform(this))
+    }
+
+    private val networkPolicyStateRepository: NetworkPolicyStateRepository by lazy {
+        RoomNetworkPolicyStateRepository(LocalDatabaseProvider.get().networkPolicyStateDao())
+    }
+
+    val networkPolicySynchronizer: NetworkPolicySynchronizer by lazy {
+        NetworkPolicySynchronizer(
+            transport = deviceCommunicationSessionManager.transportBoundary(),
+            stateRepository = networkPolicyStateRepository,
+            enforcer = AndroidNetworkPolicyEnforcer(deviceManagementManager),
+            sessionTokenProvider = { deviceCommunicationSessionManager.currentSessionToken().orEmpty() },
+        )
     }
 
     private val deviceCredentialStore: DeviceCredentialStore by lazy {
@@ -150,6 +171,7 @@ class ParentoApplication : Application() {
             screenShareManager = screenShareManager,
             applicationInventorySync = applicationInventorySync,
             localStateRepository = localStateRepository,
+            networkPolicySynchronizer = networkPolicySynchronizer,
         )
     }
 
@@ -187,7 +209,7 @@ class ParentoApplication : Application() {
         val initializer = ManagedDeviceInitializer(
             localStateRepository = localStateRepository,
             managementStateRepository = managementStateRepository,
-            deviceManagementManager = AndroidDeviceManagementManager(AndroidDeviceManagementPlatform(this)),
+            deviceManagementManager = deviceManagementManager,
             policyEngine = DefaultPolicyEngine(),
         )
         startupOrchestrator = ManagedStartupOrchestrator(initializer)
@@ -204,6 +226,19 @@ class ParentoApplication : Application() {
             context = this,
             onChanged = { availability ->
                 logger.log(LogLevel.DEBUG, "Network availability observed: $availability.")
+                if (availability == com.parento.managed.lifecycle.NetworkAvailability.CONNECTED) {
+                    applicationScope.launch {
+                        if (_initializationState.value.status == InitializationStatus.READY) {
+                            val enrollment = localStateRepository.getEnrollmentState()
+                            if (enrollment is OperationResult.Success &&
+                                enrollment.value == com.parento.managed.domain.EnrollmentState.ENROLLED
+                            ) {
+                                ensureConnectedForBackgroundWork()
+                                networkPolicySynchronizer.synchronize(null, null)
+                            }
+                        }
+                    }
+                }
             },
             logger = logger,
         )
@@ -216,6 +251,7 @@ class ParentoApplication : Application() {
                         applicationScope.launch {
                             refreshManagementState()
                             deviceCommunicationSessionManager.heartbeat()
+                            networkPolicySynchronizer.synchronize(null, null)
                         }
                     }
                 },
@@ -225,8 +261,13 @@ class ParentoApplication : Application() {
 
         screenShareManager
         applicationScope.launch {
-            localStateRepository.observe().collect {
+            localStateRepository.observe().collect { stateResult ->
                 screenShareManager.enforceAuthorization()
+                if (stateResult is OperationResult.Success &&
+                    stateResult.value?.enrollmentState == com.parento.managed.domain.EnrollmentState.REVOKED
+                ) {
+                    networkPolicyStateRepository.markRevoked()
+                }
             }
         }
         initialize()
@@ -256,7 +297,9 @@ class ParentoApplication : Application() {
             if (result is OperationResult.Success) {
                 deviceCommunicationSessionManager.recover()
                 if (result.value.enrollmentState == com.parento.managed.domain.EnrollmentState.ENROLLED) {
-                    deviceCommunicationSessionManager.connect()
+                    if (deviceCommunicationSessionManager.connect() is OperationResult.Success) {
+                        networkPolicySynchronizer.synchronize(null, null)
+                    }
                 }
                 logger.log(LogLevel.INFO, "Managed-device initialization completed.")
             } else {

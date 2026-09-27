@@ -11,6 +11,9 @@ import com.parento.managed.communication.DeviceCommunicationSessionManager
 import com.parento.managed.communication.TransportCommand
 import com.parento.managed.data.local.ManagedCommandDao
 import com.parento.managed.domain.OperationResult
+import com.parento.managed.network.NetworkPolicySyncCommandHandler
+import com.parento.managed.network.NetworkPolicyStatusCommandHandler
+import com.parento.managed.network.NetworkPolicySynchronizer
 
 class ManagedCommandRuntime(
     private val dao: ManagedCommandDao,
@@ -18,12 +21,15 @@ class ManagedCommandRuntime(
     screenShareManager: ScreenShareManager,
     applicationInventorySync: com.parento.managed.application.ApplicationInventorySync,
     localStateRepository: com.parento.managed.data.LocalStateRepository,
+    networkPolicySynchronizer: NetworkPolicySynchronizer,
 ) {
     private val handlers = mapOf(
         "START_SCREEN_SHARE" to ScreenShareStartCommandHandler(screenShareManager),
         "STOP_SCREEN_SHARE" to ScreenShareStopCommandHandler(screenShareManager),
         "REQUEST_APPLICATION_INVENTORY" to ApplicationInventoryCommandHandler(applicationInventorySync),
         "SYNC_APPLICATION_POLICY" to ApplicationPolicyCommandHandler(localStateRepository),
+        "SYNC_NETWORK_POLICY" to NetworkPolicySyncCommandHandler(networkPolicySynchronizer),
+        "REQUEST_NETWORK_POLICY_STATUS" to NetworkPolicyStatusCommandHandler(networkPolicySynchronizer),
     )
 
     suspend fun processNextCommand(): OperationResult<CommandResult?> =

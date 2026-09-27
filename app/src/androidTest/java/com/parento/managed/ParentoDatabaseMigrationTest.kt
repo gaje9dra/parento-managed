@@ -75,4 +75,23 @@ class ParentoDatabaseMigrationTest {
         database.close()
     }
 
+    @Test fun migrate9To10_addsNetworkPolicyState() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name("parento-migration-test-v10")
+                .callback(object : SupportSQLiteOpenHelper.Callback(9) {
+                    override fun onCreate(database: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+                    override fun onUpgrade(database: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                }).build(),
+        )
+        val database = helper.writableDatabase
+        database.execSQL("CREATE TABLE local_application_state (id INTEGER NOT NULL, stateVersion INTEGER NOT NULL, lastSynchronizationTimestamp INTEGER, initialized INTEGER NOT NULL, installationId TEXT, identityCreatedAtEpochMillis INTEGER, enrollmentState TEXT NOT NULL, managementMode TEXT NOT NULL, managementCapabilities TEXT NOT NULL, managementStateUpdatedAtEpochMillis INTEGER, connectionState TEXT NOT NULL, managedDeviceId TEXT, applicationInventorySyncStatus TEXT NOT NULL, lastApplicationInventoryObservedAtEpochMillis INTEGER, lastApplicationInventorySuccessfulSyncAtEpochMillis INTEGER, desiredApplicationPolicyId TEXT, desiredApplicationPolicyVersion INTEGER, acceptedApplicationPolicyVersion INTEGER, applicationPolicySyncStatus TEXT NOT NULL, applicationEnforcementStatus TEXT NOT NULL, PRIMARY KEY(id))")
+        ParentoDatabase.MIGRATION_9_10.migrate(database)
+        database.query("SELECT name FROM sqlite_master WHERE type='table' AND name='network_policy_state'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("network_policy_state", cursor.getString(0))
+        }
+        database.close()
+    }
+
 }
