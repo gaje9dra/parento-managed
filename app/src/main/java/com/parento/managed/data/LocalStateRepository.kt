@@ -45,7 +45,16 @@ interface ManagedDeviceStateRepository {
     suspend fun updateApplicationPolicyReference(
         policyId: String,
         policyVersion: Int,
+        rulesJson: String,
         status: ApplicationPolicySyncStatus,
+    ): OperationResult<Unit>
+    suspend fun clearApplicationPolicy(): OperationResult<Unit>
+    suspend fun recordApplicationPolicyEnforcement(
+        policyId: String?,
+        policyVersion: Int?,
+        syncStatus: ApplicationPolicySyncStatus,
+        enforcementStatus: ApplicationEnforcementStatus,
+        enforcedBlockedPackagesJson: String? = null,
     ): OperationResult<Unit>
     suspend fun updateApplicationEnforcementStatus(
         status: ApplicationEnforcementStatus,
@@ -219,6 +228,7 @@ class RoomLocalStateRepository(
     override suspend fun updateApplicationPolicyReference(
         policyId: String,
         policyVersion: Int,
+        rulesJson: String,
         status: ApplicationPolicySyncStatus,
     ): OperationResult<Unit> = stateMutex.withLock {
         runStorageOperation {
@@ -227,6 +237,7 @@ class RoomLocalStateRepository(
                 current.copy(
                     desiredApplicationPolicyId = policyId,
                     desiredApplicationPolicyVersion = policyVersion,
+                    desiredApplicationPolicyRulesJson = rulesJson,
                     acceptedApplicationPolicyVersion =
                         maxOf(current.acceptedApplicationPolicyVersion ?: 0, policyVersion),
                     applicationPolicySyncStatus = status,
@@ -236,6 +247,43 @@ class RoomLocalStateRepository(
                         } else {
                             current.applicationEnforcementStatus
                         },
+                ).toEntity(),
+            )
+        }
+    }
+
+    override suspend fun clearApplicationPolicy(): OperationResult<Unit> = stateMutex.withLock {
+        runStorageOperation {
+            val current = dao.read()?.toDomain() ?: LocalApplicationState()
+            dao.upsert(
+                current.copy(
+                    desiredApplicationPolicyId = null,
+                    desiredApplicationPolicyVersion = null,
+                    desiredApplicationPolicyRulesJson = null,
+                    acceptedApplicationPolicyVersion = null,
+                    applicationPolicySyncStatus = ApplicationPolicySyncStatus.PENDING,
+                    applicationEnforcementStatus = ApplicationEnforcementStatus.PENDING,
+                ).toEntity(),
+            )
+        }
+    }
+
+    override suspend fun recordApplicationPolicyEnforcement(
+        policyId: String?,
+        policyVersion: Int?,
+        syncStatus: ApplicationPolicySyncStatus,
+        enforcementStatus: ApplicationEnforcementStatus,
+        enforcedBlockedPackagesJson: String?,
+    ): OperationResult<Unit> = stateMutex.withLock {
+        runStorageOperation {
+            val current = dao.read()?.toDomain() ?: LocalApplicationState()
+            dao.upsert(
+                current.copy(
+                    appliedApplicationPolicyId = policyId,
+                    appliedApplicationPolicyVersion = policyVersion,
+                    applicationPolicySyncStatus = syncStatus,
+                    applicationEnforcementStatus = enforcementStatus,
+                    enforcedBlockedPackagesJson = enforcedBlockedPackagesJson ?: current.enforcedBlockedPackagesJson,
                 ).toEntity(),
             )
         }
@@ -312,7 +360,11 @@ private fun LocalApplicationStateEntity.toDomain(): LocalApplicationState {
         lastApplicationInventorySuccessfulSyncAtEpochMillis = lastApplicationInventorySuccessfulSyncAtEpochMillis,
         desiredApplicationPolicyId = desiredApplicationPolicyId,
         desiredApplicationPolicyVersion = desiredApplicationPolicyVersion,
+        desiredApplicationPolicyRulesJson = desiredApplicationPolicyRulesJson,
         acceptedApplicationPolicyVersion = acceptedApplicationPolicyVersion,
+        appliedApplicationPolicyId = appliedApplicationPolicyId,
+        appliedApplicationPolicyVersion = appliedApplicationPolicyVersion,
+        enforcedBlockedPackagesJson = enforcedBlockedPackagesJson,
         applicationPolicySyncStatus = runCatching {
             ApplicationPolicySyncStatus.valueOf(applicationPolicySyncStatus)
         }.getOrElse { throw IllegalStateException("Invalid persisted application policy sync status.") },
@@ -340,7 +392,11 @@ private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
         lastApplicationInventorySuccessfulSyncAtEpochMillis = lastApplicationInventorySuccessfulSyncAtEpochMillis,
         desiredApplicationPolicyId = desiredApplicationPolicyId,
         desiredApplicationPolicyVersion = desiredApplicationPolicyVersion,
+        desiredApplicationPolicyRulesJson = desiredApplicationPolicyRulesJson,
         acceptedApplicationPolicyVersion = acceptedApplicationPolicyVersion,
+        appliedApplicationPolicyId = appliedApplicationPolicyId,
+        appliedApplicationPolicyVersion = appliedApplicationPolicyVersion,
+        enforcedBlockedPackagesJson = enforcedBlockedPackagesJson,
         applicationPolicySyncStatus = applicationPolicySyncStatus.name,
         applicationEnforcementStatus = applicationEnforcementStatus.name,
     )

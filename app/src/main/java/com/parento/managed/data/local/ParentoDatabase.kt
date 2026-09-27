@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [LocalApplicationStateEntity::class, ManagedCommandEntity::class, MonitoringSnapshotEntity::class, LocationStateEntity::class],
-    version = 9,
+    version = 10,
     exportSchema = false,
 )
 abstract class ParentoDatabase : RoomDatabase() {
@@ -105,8 +105,18 @@ abstract class ParentoDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE local_application_state ADD COLUMN desiredApplicationPolicyRulesJson TEXT")
+                database.execSQL("ALTER TABLE local_application_state ADD COLUMN appliedApplicationPolicyId TEXT")
+                database.execSQL("ALTER TABLE local_application_state ADD COLUMN appliedApplicationPolicyVersion INTEGER")
+                database.execSQL("ALTER TABLE local_application_state ADD COLUMN enforcedBlockedPackagesJson TEXT")
+            }
+        }
+
+
         fun builder(context: Context): RoomDatabase.Builder<ParentoDatabase> =
             Room.databaseBuilder(context.applicationContext, ParentoDatabase::class.java, "parento-managed.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
     }
 }

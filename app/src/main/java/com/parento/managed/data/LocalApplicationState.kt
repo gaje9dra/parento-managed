@@ -32,7 +32,11 @@ data class LocalApplicationState(
     val lastApplicationInventorySuccessfulSyncAtEpochMillis: Long? = null,
     val desiredApplicationPolicyId: String? = null,
     val desiredApplicationPolicyVersion: Int? = null,
+    val desiredApplicationPolicyRulesJson: String? = null,
     val acceptedApplicationPolicyVersion: Int? = null,
+    val appliedApplicationPolicyId: String? = null,
+    val appliedApplicationPolicyVersion: Int? = null,
+    val enforcedBlockedPackagesJson: String? = null,
     val applicationPolicySyncStatus: ApplicationPolicySyncStatus = ApplicationPolicySyncStatus.NONE,
     val applicationEnforcementStatus: ApplicationEnforcementStatus = ApplicationEnforcementStatus.UNKNOWN,
 )

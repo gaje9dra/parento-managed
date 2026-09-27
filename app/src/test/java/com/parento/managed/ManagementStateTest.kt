@@ -145,7 +145,16 @@ class ManagementStateTest {
         override suspend fun updateApplicationPolicyReference(
             policyId: String,
             policyVersion: Int,
+            rulesJson: String,
             status: com.parento.managed.application.ApplicationPolicySyncStatus,
+        ): OperationResult<Unit> = OperationResult.Success(Unit)
+        override suspend fun clearApplicationPolicy(): OperationResult<Unit> = OperationResult.Success(Unit)
+        override suspend fun recordApplicationPolicyEnforcement(
+            policyId: String?,
+            policyVersion: Int?,
+            syncStatus: com.parento.managed.application.ApplicationPolicySyncStatus,
+            enforcementStatus: com.parento.managed.application.ApplicationEnforcementStatus,
+            enforcedBlockedPackagesJson: String?,
         ): OperationResult<Unit> = OperationResult.Success(Unit)
         override suspend fun updateApplicationEnforcementStatus(
             status: com.parento.managed.application.ApplicationEnforcementStatus,
