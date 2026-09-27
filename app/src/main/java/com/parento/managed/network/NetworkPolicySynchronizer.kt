@@ -12,9 +12,26 @@ class NetworkPolicySynchronizer(
     private val nowEpochMillis: () -> Long = { System.currentTimeMillis() },
 ) {
     suspend fun synchronize(expectedPolicyId: String?, expectedPolicyVersion: Long?): OperationResult<NetworkPolicyEnforcementResult> {
-        val current = when (val result = stateRepository.read()) {
+        var current = when (val result = stateRepository.read()) {
             is OperationResult.Failure -> return result
             is OperationResult.Success -> result.value
+        }
+
+        // A REVOKED state belongs to the previous enrollment and must never
+        // make an older policy authoritative after re-enrollment.
+        if (current.enforcementStatus == NetworkEnforcementStatus.REVOKED) {
+            current = current.copy(
+                desiredPolicyId = null,
+                desiredPolicyVersion = null,
+                desiredPolicyJson = null,
+                appliedPolicyId = null,
+                appliedPolicyVersion = null,
+                enforcementStatus = NetworkEnforcementStatus.UNKNOWN,
+                pendingSynchronization = false,
+                lastErrorCode = null,
+            )
+            val cleared = stateRepository.write(current)
+            if (cleared is OperationResult.Failure) return cleared
         }
 
         if (expectedPolicyId != null && !isUuid(expectedPolicyId)) {
@@ -25,13 +42,14 @@ class NetworkPolicySynchronizer(
         }
 
         val capability = enforcer.capability()
-        stateRepository.write(
+        val capabilityState = stateRepository.write(
             current.copy(
                 capabilityMode = capability.mode,
                 capabilitySupported = capability.supported,
                 capabilityVersion = capability.capabilityVersion,
             ),
         )
+        if (capabilityState is OperationResult.Failure) return capabilityState
         val capabilityReport = transport.reportNetworkPolicyCapability(
             sessionToken = sessionTokenProvider().orEmpty(),
             capability = capability,
@@ -90,7 +108,10 @@ class NetworkPolicySynchronizer(
             )
         }
 
-        if (current.desiredPolicyVersion != null && policy.version < current.desiredPolicyVersion) {
+        if (current.desiredPolicyId == policy.policyId &&
+            current.desiredPolicyVersion != null &&
+            policy.version < current.desiredPolicyVersion
+        ) {
             return finish(
                 current.copy(
                     enforcementStatus = NetworkEnforcementStatus.STALE,
@@ -102,6 +123,24 @@ class NetworkPolicySynchronizer(
             )
         }
 
+        if (policy.status == NetworkPolicyStatus.DISABLED) {
+            val removal = enforcer.remove(current.appliedPolicyId)
+            return finish(
+                current.copy(
+                    desiredPolicyId = policy.policyId,
+                    desiredPolicyVersion = policy.version,
+                    desiredPolicyJson = NetworkPolicyJson.encode(policy),
+                    appliedPolicyId = if (removal.applied) null else current.appliedPolicyId,
+                    appliedPolicyVersion = if (removal.applied) null else current.appliedPolicyVersion,
+                    enforcementStatus = removal.status,
+                    pendingSynchronization = false,
+                    lastSynchronizedAtEpochMillis = nowEpochMillis(),
+                    lastErrorCode = removal.errorCode,
+                ),
+                removal,
+            )
+        }
+
         val encoded = NetworkPolicyJson.encode(policy)
         val desired = current.copy(
             desiredPolicyId = policy.policyId,
@@ -110,7 +149,8 @@ class NetworkPolicySynchronizer(
             pendingSynchronization = true,
             lastErrorCode = null,
         )
-        stateRepository.write(desired)
+        val desiredState = stateRepository.write(desired)
+        if (desiredState is OperationResult.Failure) return desiredState
 
         if (current.appliedPolicyId == policy.policyId &&
             current.appliedPolicyVersion == policy.version &&
@@ -146,13 +186,14 @@ class NetworkPolicySynchronizer(
             is OperationResult.Success -> result.value
         }
         val capability = enforcer.capability()
-        stateRepository.write(
+        val capabilityState = stateRepository.write(
             current.copy(
                 capabilityMode = capability.mode,
                 capabilitySupported = capability.supported,
                 capabilityVersion = capability.capabilityVersion,
             ),
         )
+        if (capabilityState is OperationResult.Failure) return capabilityState
         transport.reportNetworkPolicyCapability(
             sessionToken = sessionTokenProvider().orEmpty(),
             capability = capability,
@@ -188,6 +229,21 @@ class NetworkPolicySynchronizer(
         return OperationResult.Success(result)
     }
 
+
+    suspend fun handleRevocation(): OperationResult<Unit> {
+        val current = when (val result = stateRepository.read()) {
+            is OperationResult.Failure -> return result
+            is OperationResult.Success -> result.value
+        }
+        val removal = enforcer.remove(current.appliedPolicyId)
+        val marked = stateRepository.markRevoked()
+        if (marked is OperationResult.Failure) return marked
+        return if (removal.applied || removal.status == NetworkEnforcementStatus.UNSUPPORTED) {
+            OperationResult.Success(Unit)
+        } else {
+            OperationResult.Failure(com.parento.managed.domain.ManagedError.POLICY_FAILURE)
+        }
+    }
 
     private fun isUuid(value: String): Boolean =
         runCatching { UUID.fromString(value) }.isSuccess

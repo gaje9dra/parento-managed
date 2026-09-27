@@ -42,6 +42,7 @@ import com.parento.managed.screenshare.ScreenShareManager
 import com.parento.managed.monitoring.*
 import com.parento.managed.network.AndroidNetworkPolicyEnforcer
 import com.parento.managed.network.NetworkPolicyStateRepository
+import com.parento.managed.network.NetworkPolicySyncScheduler
 import com.parento.managed.network.NetworkPolicySynchronizer
 import com.parento.managed.network.RoomNetworkPolicyStateRepository
 import kotlinx.coroutines.CoroutineScope
@@ -69,6 +70,7 @@ class ParentoApplication : Application() {
     private lateinit var monitoringScheduler: MonitoringScheduler
     private lateinit var locationScheduler: com.parento.managed.location.LocationScheduler
     private lateinit var applicationInventoryScheduler: ApplicationInventoryScheduler
+    private lateinit var networkPolicySyncScheduler: NetworkPolicySyncScheduler
 
     val localStateRepository: LocalStateRepository by lazy {
         RoomLocalStateRepository(LocalDatabaseProvider.get().localApplicationStateDao())
@@ -221,6 +223,7 @@ class ParentoApplication : Application() {
         locationScheduler.schedule()
         applicationInventoryScheduler = ApplicationInventoryScheduler(this)
         applicationInventoryScheduler.schedule()
+        networkPolicySyncScheduler = NetworkPolicySyncScheduler(this)
 
         connectivityObserver = AndroidConnectivityObserver(
             context = this,
@@ -233,8 +236,7 @@ class ParentoApplication : Application() {
                             if (enrollment is OperationResult.Success &&
                                 enrollment.value == com.parento.managed.domain.EnrollmentState.ENROLLED
                             ) {
-                                ensureConnectedForBackgroundWork()
-                                networkPolicySynchronizer.synchronize(null, null)
+                                networkPolicySyncScheduler.schedule()
                             }
                         }
                     }
@@ -251,7 +253,7 @@ class ParentoApplication : Application() {
                         applicationScope.launch {
                             refreshManagementState()
                             deviceCommunicationSessionManager.heartbeat()
-                            networkPolicySynchronizer.synchronize(null, null)
+                            networkPolicySyncScheduler.schedule()
                         }
                     }
                 },
@@ -261,13 +263,17 @@ class ParentoApplication : Application() {
 
         screenShareManager
         applicationScope.launch {
+            var previousEnrollmentState: com.parento.managed.domain.EnrollmentState? = null
             localStateRepository.observe().collect { stateResult ->
                 screenShareManager.enforceAuthorization()
-                if (stateResult is OperationResult.Success &&
-                    stateResult.value?.enrollmentState == com.parento.managed.domain.EnrollmentState.REVOKED
+                val enrollmentState = (stateResult as? OperationResult.Success)?.value?.enrollmentState
+                if (enrollmentState == com.parento.managed.domain.EnrollmentState.REVOKED &&
+                    previousEnrollmentState != com.parento.managed.domain.EnrollmentState.REVOKED
                 ) {
-                    networkPolicyStateRepository.markRevoked()
+                    networkPolicySyncScheduler.cancel()
+                    networkPolicySynchronizer.handleRevocation()
                 }
+                previousEnrollmentState = enrollmentState
             }
         }
         initialize()
@@ -298,7 +304,7 @@ class ParentoApplication : Application() {
                 deviceCommunicationSessionManager.recover()
                 if (result.value.enrollmentState == com.parento.managed.domain.EnrollmentState.ENROLLED) {
                     if (deviceCommunicationSessionManager.connect() is OperationResult.Success) {
-                        networkPolicySynchronizer.synchronize(null, null)
+                        networkPolicySyncScheduler.schedule()
                     }
                 }
                 logger.log(LogLevel.INFO, "Managed-device initialization completed.")

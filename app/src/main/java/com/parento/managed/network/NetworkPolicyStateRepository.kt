@@ -39,6 +39,11 @@ class RoomNetworkPolicyStateRepository(
                 val current = dao.read()?.toDomain() ?: LocalNetworkPolicyState()
                 dao.upsert(
                     current.copy(
+                        desiredPolicyId = null,
+                        desiredPolicyVersion = null,
+                        desiredPolicyJson = null,
+                        appliedPolicyId = null,
+                        appliedPolicyVersion = null,
                         enforcementStatus = NetworkEnforcementStatus.REVOKED,
                         pendingSynchronization = false,
                         lastErrorCode = "DEVICE_REVOKED",

@@ -3,7 +3,9 @@ package com.parento.managed.network
 import java.util.Locale
 
 object NetworkPolicyDomain {
-    private const val MAX_HOSTNAME_LENGTH = 255
+    private const val MAX_HOSTNAME_LENGTH = 253
+    private const val MAX_RULES = 500
+    private val uuidPattern = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", RegexOption.IGNORE_CASE)
     private val labelPattern = Regex("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
     fun normalize(input: String): String? {
@@ -30,8 +32,9 @@ object NetworkPolicyDomain {
     }
 
     fun validateRules(rules: List<NetworkPolicyRule>): Boolean {
+        if (rules.size > MAX_RULES) return false
         val normalized = rules.map { normalize(it.domain) ?: return false }
         return normalized.distinct().size == normalized.size &&
-            rules.all { it.ruleId.isNotBlank() }
+            rules.all { uuidPattern.matches(it.ruleId) }
     }
 }
