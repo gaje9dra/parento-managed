@@ -33,6 +33,14 @@ class NetworkPolicyDomainTest {
     }
 
     @Test
+    fun rejectsHostnamesLongerThanBackendMaximum() {
+        val label = "a".repeat(63)
+        val tooLong = listOf(label, label, label, "com").joinToString(".")
+        assertTrue(tooLong.length > 253)
+        assertTrue(NetworkPolicyDomain.normalize(tooLong) == null)
+    }
+
+    @Test
     fun androidEnforcerFailsClosedWhenManagementModeIsKnown() {
         val manager = FakeManagementManager(ManagementDetectionResult(ManagementMode.DEVICE_OWNER))
         val enforcer = AndroidNetworkPolicyEnforcer(manager)
