@@ -47,7 +47,11 @@ class ApplicationPolicyEvaluator {
                 .map { (packageName, suspended) ->
                     ApplicationEnforcementTarget(
                         packageName = packageName,
-                        desiredAction = ruleMap[packageName] ?: ApplicationDesiredAction.ALLOW,
+                        desiredAction = when {
+                            ruleMap[packageName] != null -> ruleMap[packageName]!!
+                            packageName in previouslyManagedBlockedPackages -> ApplicationDesiredAction.ALLOW
+                            else -> ApplicationDesiredAction.ALLOW
+                        },
                         currentlySuspended = suspended,
                     )
                 }
@@ -64,6 +68,7 @@ data class ApplicationEnforcementOutcome(
     val failed: Int,
     val unsupported: Int,
     val errorCode: String?,
+    val resultingManagedBlockedPackages: Set<String> = emptySet(),
 ) {
     val status: ApplicationEnforcementStatus
         get() = when {
@@ -135,6 +140,7 @@ class ApplicationEnforcementEngine(
         policyId: String?,
         policyVersion: Int?,
         rules: List<ApplicationPolicyRule>,
+        previouslyManagedBlockedPackages: Set<String> = emptySet(),
     ): ApplicationEnforcementOutcome {
         val mode = platform.managementMode()
         if (mode != ManagementMode.DEVICE_OWNER && mode != ManagementMode.PROFILE_OWNER) {
@@ -174,6 +180,11 @@ class ApplicationEnforcementEngine(
             if (ok) succeeded else failed++
         }
 
+        val resultingManagedBlockedPackages = evaluation.targets
+            .filter { it.desiredAction == ApplicationDesiredAction.BLOCK }
+            .map { it.packageName }
+            .toSet()
+
         return ApplicationEnforcementOutcome(
             policyId = policyId,
             policyVersion = policyVersion,
@@ -181,6 +192,7 @@ class ApplicationEnforcementEngine(
             succeeded = succeeded,
             failed = failed,
             unsupported = 0,
+            resultingManagedBlockedPackages = resultingManagedBlockedPackages,
             errorCode = when {
                 failed > 0 && succeeded == 0 -> "ENFORCEMENT_FAILED"
                 failed > 0 -> "PARTIAL_ENFORCEMENT"
