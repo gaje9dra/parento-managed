@@ -42,13 +42,14 @@ class NetworkPolicySynchronizer(
         }
 
         val capability = enforcer.capability()
-        stateRepository.write(
+        val capabilityState = stateRepository.write(
             current.copy(
                 capabilityMode = capability.mode,
                 capabilitySupported = capability.supported,
                 capabilityVersion = capability.capabilityVersion,
             ),
         )
+        if (capabilityState is OperationResult.Failure) return capabilityState
         val capabilityReport = transport.reportNetworkPolicyCapability(
             sessionToken = sessionTokenProvider().orEmpty(),
             capability = capability,
@@ -145,7 +146,8 @@ class NetworkPolicySynchronizer(
             pendingSynchronization = true,
             lastErrorCode = null,
         )
-        stateRepository.write(desired)
+        val desiredState = stateRepository.write(desired)
+        if (desiredState is OperationResult.Failure) return desiredState
 
         if (current.appliedPolicyId == policy.policyId &&
             current.appliedPolicyVersion == policy.version &&
@@ -181,13 +183,14 @@ class NetworkPolicySynchronizer(
             is OperationResult.Success -> result.value
         }
         val capability = enforcer.capability()
-        stateRepository.write(
+        val capabilityState = stateRepository.write(
             current.copy(
                 capabilityMode = capability.mode,
                 capabilitySupported = capability.supported,
                 capabilityVersion = capability.capabilityVersion,
             ),
         )
+        if (capabilityState is OperationResult.Failure) return capabilityState
         transport.reportNetworkPolicyCapability(
             sessionToken = sessionTokenProvider().orEmpty(),
             capability = capability,
