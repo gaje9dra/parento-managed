@@ -55,7 +55,7 @@ class NetworkPolicyStatusCommandHandler(
         if (payload.keys().asSequence().toSet() != setOf("schemaVersion") || payload.optInt("schemaVersion", -1) != 1) {
             return@runBlocking invalid()
         }
-        when (val result = synchronizer.synchronize(null, null)) {
+        when (val result = synchronizer.reportCurrentStatus()) {
             is OperationResult.Failure ->
                 OperationResult.Success(CommandResult(CommandExecutionState.FAILED, "NETWORK_POLICY_STATUS_FAILED", result.error.name))
             is OperationResult.Success ->
