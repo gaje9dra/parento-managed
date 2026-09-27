@@ -147,6 +147,16 @@ class AndroidDeviceManagementManager(
                 },
             ),
             CapabilityState(
+                DeviceManagementCapability.NETWORK_POLICY_ENFORCEMENT,
+                when {
+                    detection.error != null -> CapabilityStatus.ERROR
+                    detection.mode == ManagementMode.DEVICE_OWNER ||
+                        detection.mode == ManagementMode.PROFILE_OWNER ||
+                        detection.mode == ManagementMode.NOT_MANAGED -> CapabilityStatus.NOT_SUPPORTED
+                    else -> CapabilityStatus.ERROR
+                },
+            ),
+            CapabilityState(
                 DeviceManagementCapability.SCREEN_CAPTURE_CAPABILITY,
                 CapabilityStatus.NOT_SUPPORTED,
             ),
