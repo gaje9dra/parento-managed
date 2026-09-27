@@ -147,7 +147,6 @@ class EnrollmentRepositoryTest {
             enrollmentState = EnrollmentState.ENROLLED
             return OperationResult.Success(Unit)
         }
-    }
         override suspend fun updateApplicationInventorySync(
             status: com.parento.managed.application.ApplicationInventorySyncStatus,
             observedAtEpochMillis: Long?,
@@ -164,6 +163,7 @@ class EnrollmentRepositoryTest {
         override suspend fun updateApplicationPolicySyncStatus(
             status: com.parento.managed.application.ApplicationPolicySyncStatus,
         ): OperationResult<Unit> = OperationResult.Success(Unit)
+    }
 }
 
 
