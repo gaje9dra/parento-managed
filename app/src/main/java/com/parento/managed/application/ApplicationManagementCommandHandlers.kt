@@ -7,6 +7,7 @@ import com.parento.managed.command.ManagedCommand
 import com.parento.managed.data.LocalStateRepository
 import com.parento.managed.domain.OperationResult
 import java.util.UUID
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 class ApplicationInventoryCommandHandler(
@@ -15,7 +16,7 @@ class ApplicationInventoryCommandHandler(
     override val commandType: String = "REQUEST_APPLICATION_INVENTORY"
     override val supportedVersion: Int = 1
 
-    override suspend fun handle(command: ManagedCommand): OperationResult<CommandResult> {
+    override fun handle(command: ManagedCommand): OperationResult<CommandResult> = runBlocking {
         if (command.payloadJson.trim() != "{}") {
             return OperationResult.Success(
                 CommandResult(
