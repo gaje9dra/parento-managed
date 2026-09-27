@@ -28,7 +28,7 @@ class NetworkPolicySynchronizerTest {
                 policyId = policyId,
                 version = 7L,
                 status = NetworkPolicyStatus.ACTIVE,
-                rules = listOf(NetworkPolicyRule("rule", "example.com", NetworkRuleAction.BLOCK, true)),
+                rules = listOf(NetworkPolicyRule("550e8400-e29b-41d4-a716-446655440001", "example.com", NetworkRuleAction.BLOCK, true)),
                 receivedAtEpochMillis = 1L,
             ),
         )
@@ -139,7 +139,7 @@ class NetworkPolicySynchronizerTest {
                 policyId = policyId,
                 version = 1L,
                 status = NetworkPolicyStatus.ACTIVE,
-                rules = listOf(NetworkPolicyRule("rule", "example.com", NetworkRuleAction.BLOCK, true)),
+                rules = listOf(NetworkPolicyRule("550e8400-e29b-41d4-a716-446655440001", "example.com", NetworkRuleAction.BLOCK, true)),
                 receivedAtEpochMillis = 1L,
             ),
         )
