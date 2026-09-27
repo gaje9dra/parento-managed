@@ -10,6 +10,7 @@ import kotlinx.coroutines.sync.withLock
 interface NetworkPolicyStateRepository {
     suspend fun read(): OperationResult<LocalNetworkPolicyState>
     suspend fun write(state: LocalNetworkPolicyState): OperationResult<Unit>
+    suspend fun markRevoked(): OperationResult<Unit>
 }
 
 class RoomNetworkPolicyStateRepository(
@@ -27,6 +28,23 @@ class RoomNetworkPolicyStateRepository(
     override suspend fun write(state: LocalNetworkPolicyState): OperationResult<Unit> =
         mutex.withLock {
             runCatching { dao.upsert(state.toEntity()) }.fold(
+                onSuccess = { OperationResult.Success(Unit) },
+                onFailure = { OperationResult.Failure(ManagedError.STORAGE_FAILURE) },
+            )
+        }
+
+    override suspend fun markRevoked(): OperationResult<Unit> =
+        mutex.withLock {
+            runCatching {
+                val current = dao.read()?.toDomain() ?: LocalNetworkPolicyState()
+                dao.upsert(
+                    current.copy(
+                        enforcementStatus = NetworkEnforcementStatus.REVOKED,
+                        pendingSynchronization = false,
+                        lastErrorCode = "DEVICE_REVOKED",
+                    ).toEntity(),
+                )
+            }.fold(
                 onSuccess = { OperationResult.Success(Unit) },
                 onFailure = { OperationResult.Failure(ManagedError.STORAGE_FAILURE) },
             )
