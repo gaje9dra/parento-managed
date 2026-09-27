@@ -1,5 +1,7 @@
 package com.parento.managed.device
 
+import android.os.Build
+
 interface DeviceManagementManager {
     fun detectManagementMode(): ManagementMode
     fun detectManagementState(): ManagementDetectionResult
@@ -118,7 +120,7 @@ class AndroidDeviceManagementManager(
                 DeviceManagementCapability.POLICY_SUPPORT,
                 when {
                     detection.error != null -> CapabilityStatus.ERROR
-                    managed -> CapabilityStatus.NOT_SUPPORTED
+                    managed -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) CapabilityStatus.AVAILABLE else CapabilityStatus.NOT_SUPPORTED
                     else -> CapabilityStatus.REQUIRES_AUTHORIZATION
                 },
             ),
