@@ -390,7 +390,10 @@ private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
         lastApplicationInventorySuccessfulSyncAtEpochMillis = lastApplicationInventorySuccessfulSyncAtEpochMillis,
         desiredApplicationPolicyId = desiredApplicationPolicyId,
         desiredApplicationPolicyVersion = desiredApplicationPolicyVersion,
+        desiredApplicationPolicyRulesJson = desiredApplicationPolicyRulesJson,
         acceptedApplicationPolicyVersion = acceptedApplicationPolicyVersion,
+        appliedApplicationPolicyId = appliedApplicationPolicyId,
+        appliedApplicationPolicyVersion = appliedApplicationPolicyVersion,
         applicationPolicySyncStatus = applicationPolicySyncStatus.name,
         applicationEnforcementStatus = applicationEnforcementStatus.name,
     )
