@@ -140,6 +140,37 @@ class NetworkPolicySynchronizer(
         )
     }
 
+    suspend fun reportCurrentStatus(): OperationResult<NetworkPolicyEnforcementResult> {
+        val current = when (val result = stateRepository.read()) {
+            is OperationResult.Failure -> return result
+            is OperationResult.Success -> result.value
+        }
+        val capability = enforcer.capability()
+        stateRepository.write(
+            current.copy(
+                capabilityMode = capability.mode,
+                capabilitySupported = capability.supported,
+                capabilityVersion = capability.capabilityVersion,
+            ),
+        )
+        transport.reportNetworkPolicyCapability(
+            sessionToken = sessionTokenProvider().orEmpty(),
+            capability = capability,
+        )
+        return finish(
+            current.copy(
+                lastSynchronizedAtEpochMillis = current.lastSynchronizedAtEpochMillis ?: nowEpochMillis(),
+            ),
+            NetworkPolicyEnforcementResult(
+                status = current.enforcementStatus,
+                applied = current.appliedPolicyId != null &&
+                    current.appliedPolicyVersion != null &&
+                    current.enforcementStatus == NetworkEnforcementStatus.APPLIED,
+                errorCode = current.lastErrorCode,
+            ),
+        )
+    }
+
     private suspend fun finish(
         state: LocalNetworkPolicyState,
         result: NetworkPolicyEnforcementResult,
