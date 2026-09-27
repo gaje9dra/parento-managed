@@ -18,7 +18,7 @@ class ApplicationInventoryCommandHandler(
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> = runBlocking {
         if (command.payloadJson.trim() != "{}") {
-            return OperationResult.Success(
+            return@runBlocking OperationResult.Success(
                 CommandResult(
                     CommandExecutionState.FAILED,
                     "INVALID_PAYLOAD",
@@ -27,7 +27,7 @@ class ApplicationInventoryCommandHandler(
             )
         }
 
-        return when (val result = sync.syncNow()) {
+        return@runBlocking when (val result = sync.syncNow()) {
             is OperationResult.Success ->
                 OperationResult.Success(
                     CommandResult(
@@ -58,20 +58,20 @@ class ApplicationPolicyCommandHandler(
     override val commandType: String = "SYNC_APPLICATION_POLICY"
     override val supportedVersion: Int = 1
 
-    override suspend fun handle(command: ManagedCommand): OperationResult<CommandResult> {
+    override fun handle(command: ManagedCommand): OperationResult<CommandResult> = runBlocking {
         val payload = runCatching { JSONObject(command.payloadJson) }.getOrNull()
-            ?: return invalidPayload()
+            ?: return@runBlocking invalidPayload()
 
         val keys = payload.keys().asSequence().toSet()
-        if (keys != setOf("policyId", "policyVersion")) return invalidPayload()
+        if (keys != setOf("policyId", "policyVersion")) return@runBlocking invalidPayload()
 
         val policyId = payload.optString("policyId", "").trim()
         val policyVersion = payload.optInt("policyVersion", -1)
-        if (!isUuid(policyId) || policyVersion < 1) return invalidPayload()
+        if (!isUuid(policyId) || policyVersion < 1) return@runBlocking invalidPayload()
 
         val current = when (val result = localStateRepository.read()) {
             is OperationResult.Failure -> {
-                return OperationResult.Success(
+                return@runBlocking OperationResult.Success(
                     CommandResult(
                         CommandExecutionState.FAILED,
                         "LOCAL_STATE_UNAVAILABLE",
@@ -80,7 +80,7 @@ class ApplicationPolicyCommandHandler(
                 )
             }
             is OperationResult.Success -> result.value
-        } ?: return OperationResult.Success(
+        } ?: return@runBlocking OperationResult.Success(
             CommandResult(
                 CommandExecutionState.FAILED,
                 "LOCAL_STATE_UNAVAILABLE",
