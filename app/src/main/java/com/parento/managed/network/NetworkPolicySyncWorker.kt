@@ -35,10 +35,11 @@ class NetworkPolicySyncWorker(
             is OperationResult.Failure -> {
                 val failureClass = when (result.error) {
                     ManagedError.NETWORK_FAILURE,
-                    ManagedError.AUTHENTICATION_FAILURE,
                     ManagedError.UNKNOWN,
                     -> BackgroundWorkFailureClass.TRANSIENT
-                    ManagedError.AUTHORIZATION_FAILURE -> BackgroundWorkFailureClass.AUTHORIZATION
+                    ManagedError.AUTHENTICATION_FAILURE,
+                    ManagedError.AUTHORIZATION_FAILURE,
+                    -> BackgroundWorkFailureClass.AUTHORIZATION
                     else -> BackgroundWorkFailureClass.PERMANENT
                 }
                 if (retryPolicy.decide(failureClass, runAttemptCount).retry) {
