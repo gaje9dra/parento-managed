@@ -226,7 +226,8 @@ class HttpsDeviceTransport(
                 .put("policyVersion", policyVersion)
                 .put("status", status.name)
                 .put("reportedAt", java.time.Instant.ofEpochMilli(reportedAtEpochMillis).toString())
-                .put("errorCode", errorCode),
+                .put("errorCode", errorCode)
+                .toString(),
         ) { Unit }
 
     override suspend fun reportNetworkPolicyCapability(
@@ -241,7 +242,8 @@ class HttpsDeviceTransport(
                 .put("supported", capability.supported)
                 .put("mode", capability.mode.name)
                 .put("capabilityVersion", capability.capabilityVersion)
-                .put("reportedAt", java.time.Instant.ofEpochMilli(capability.reportedAtEpochMillis).toString()),
+                .put("reportedAt", java.time.Instant.ofEpochMilli(capability.reportedAtEpochMillis).toString())
+                .toString(),
         ) { Unit }
 
 
