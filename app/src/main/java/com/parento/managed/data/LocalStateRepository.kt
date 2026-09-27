@@ -261,8 +261,6 @@ class RoomLocalStateRepository(
                     desiredApplicationPolicyVersion = null,
                     desiredApplicationPolicyRulesJson = null,
                     acceptedApplicationPolicyVersion = null,
-                    appliedApplicationPolicyId = null,
-                    appliedApplicationPolicyVersion = null,
                     applicationPolicySyncStatus = ApplicationPolicySyncStatus.PENDING,
                     applicationEnforcementStatus = ApplicationEnforcementStatus.PENDING,
                 ).toEntity(),
