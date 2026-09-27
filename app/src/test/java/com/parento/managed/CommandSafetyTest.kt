@@ -57,15 +57,17 @@ class CommandSafetyTest {
             commandType = "START_AUDIO_ACCESS",
             payloadJson = """{"audioSessionId":"$audioSessionId"}""",
             idempotencyKey = "audio-session:$audioSessionId:START_AUDIO_ACCESS",
+            createdAtEpochMillis = 1_000_000L,
+            expiresAtEpochMillis = 2_000_000L,
         )
-        assertTrue(DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500L }).validate(audio) is OperationResult.Success)
+        assertTrue(DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500_000L }).validate(audio) is OperationResult.Success)
         assertTrue(
-            DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500L }).validate(
+            DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500_000L }).validate(
                 audio.copy(idempotencyKey = "wrong-key"),
             ) is OperationResult.Failure,
         )
         assertTrue(
-            DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500L }).validate(
+            DefaultCommandValidator({ audio.managedDeviceId }, nowEpochMillis = { 1_500_000L }).validate(
                 audio.copy(payloadJson = """{"audioSessionId":"$audioSessionId","extra":"x"}"""),
             ) is OperationResult.Failure,
         )
