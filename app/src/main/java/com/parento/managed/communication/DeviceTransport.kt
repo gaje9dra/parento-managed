@@ -185,7 +185,7 @@ class HttpsDeviceTransport(
                         ?: throw IllegalArgumentException("Invalid network-policy domain.")
                     add(
                         NetworkPolicyRule(
-                            ruleId = item.getString("id"),
+                            ruleId = item.getString("id").also { if (!isUuid(it)) throw IllegalArgumentException("Invalid network-policy rule id.") },
                             domain = normalized,
                             action = NetworkRuleAction.valueOf(item.getString("action")),
                             enabled = item.getBoolean("enabled"),
@@ -193,10 +193,11 @@ class HttpsDeviceTransport(
                     )
                 }
             }
+            if (!isUuid(policyObject.getString("id"))) throw IllegalArgumentException("Invalid network-policy id.")
             val policy = NetworkPolicy(
                 policyId = policyObject.getString("id"),
                 version = policyObject.getLong("version"),
-                status = com.parento.managed.network.NetworkPolicyStatus.valueOf(policyObject.getString("status")),
+                status = com.parento.managed.network.NetworkPolicyStatus.valueOf(policyObject.optString("status", "ACTIVE")),
                 name = policyObject.optString("name").ifBlank { null },
                 description = policyObject.optString("description").ifBlank { null },
                 rules = rules,
