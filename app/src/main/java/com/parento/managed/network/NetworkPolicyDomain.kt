@@ -32,8 +32,9 @@ object NetworkPolicyDomain {
     }
 
     fun validateRules(rules: List<NetworkPolicyRule>): Boolean {
+        if (rules.size > MAX_RULES) return false
         val normalized = rules.map { normalize(it.domain) ?: return false }
         return normalized.distinct().size == normalized.size &&
-            rules.all { it.ruleId.isNotBlank() }
+            rules.all { uuidPattern.matches(it.ruleId) }
     }
 }
