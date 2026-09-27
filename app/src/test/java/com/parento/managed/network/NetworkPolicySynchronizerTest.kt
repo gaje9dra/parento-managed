@@ -46,6 +46,48 @@ class NetworkPolicySynchronizerTest {
     }
 
     @Test
+    fun lowerVersionOfDifferentPolicyIsNotRejectedAsStale() = kotlinx.coroutines.test.runTest {
+        val repository = FakeStateRepository(
+            LocalNetworkPolicyState(
+                desiredPolicyId = policyId,
+                desiredPolicyVersion = 8L,
+                enforcementStatus = NetworkEnforcementStatus.APPLIED,
+            ),
+        )
+        val enforcer = FakeEnforcer()
+        val differentPolicyId = "550e8400-e29b-41d4-a716-446655440010"
+        val transport = FakeTransport(
+            NetworkPolicy(
+                policyId = differentPolicyId,
+                version = 1L,
+                status = NetworkPolicyStatus.ACTIVE,
+                rules = listOf(
+                    NetworkPolicyRule(
+                        "550e8400-e29b-41d4-a716-446655440011",
+                        "example.com",
+                        NetworkRuleAction.BLOCK,
+                        true,
+                    ),
+                ),
+                receivedAtEpochMillis = 1L,
+            ),
+        )
+
+        val result = NetworkPolicySynchronizer(
+            transport,
+            repository,
+            enforcer,
+            { "token" },
+        ).synchronize(null, null)
+
+        assertTrue(result is OperationResult.Success)
+        assertEquals(NetworkEnforcementStatus.UNSUPPORTED, (result as OperationResult.Success).value.status)
+        assertEquals(differentPolicyId, repository.state.desiredPolicyId)
+        assertEquals(1L, repository.state.desiredPolicyVersion)
+        assertEquals(1, enforcer.applyCalls)
+    }
+
+    @Test
     fun disabledPolicyRemovesOnlyThePreviouslyAppliedPolicy() = kotlinx.coroutines.test.runTest {
         val repository = FakeStateRepository(
             LocalNetworkPolicyState(
