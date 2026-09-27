@@ -4,9 +4,7 @@ import com.parento.managed.command.CommandExecutionState
 import com.parento.managed.command.CommandHandler
 import com.parento.managed.command.CommandResult
 import com.parento.managed.command.ManagedCommand
-import com.parento.managed.data.LocalStateRepository
 import com.parento.managed.domain.OperationResult
-import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
@@ -17,7 +15,11 @@ class ApplicationInventoryCommandHandler(
     override val supportedVersion: Int = 1
 
     override fun handle(command: ManagedCommand): OperationResult<CommandResult> = runBlocking {
-        if (command.payloadJson.trim() != "{}") {
+        val payload = runCatching { JSONObject(command.payloadJson) }.getOrNull()
+        if (payload == null ||
+            payload.keys().asSequence().toSet() != setOf("schemaVersion") ||
+            payload.optInt("schemaVersion", -1) != 1
+        ) {
             return@runBlocking OperationResult.Success(
                 CommandResult(
                     CommandExecutionState.FAILED,
@@ -53,7 +55,7 @@ class ApplicationInventoryCommandHandler(
 }
 
 class ApplicationPolicyCommandHandler(
-    private val localStateRepository: LocalStateRepository,
+    private val synchronizer: ApplicationPolicySynchronizer,
 ) : CommandHandler {
     override val commandType: String = "SYNC_APPLICATION_POLICY"
     override val supportedVersion: Int = 1
@@ -62,105 +64,75 @@ class ApplicationPolicyCommandHandler(
         val payload = runCatching { JSONObject(command.payloadJson) }.getOrNull()
             ?: return@runBlocking invalidPayload()
 
-        val keys = payload.keys().asSequence().toSet()
-        if (keys != setOf("policyId", "policyVersion")) return@runBlocking invalidPayload()
+        if (payload.keys().asSequence().toSet() != setOf("policyId", "policyVersion")) {
+            return@runBlocking invalidPayload()
+        }
 
-        val policyId = payload.optString("policyId", "").trim()
-        val policyVersion = payload.optInt("policyVersion", -1)
-        if (!isUuid(policyId) || policyVersion < 1) return@runBlocking invalidPayload()
+        val policyId = if (payload.isNull("policyId")) null else payload.optString("policyId", "").trim()
+        val policyVersion = if (payload.isNull("policyVersion")) null else payload.optInt("policyVersion", -1)
+        if ((policyId == null) != (policyVersion == null) ||
+            (policyId != null && !isUuid(policyId)) ||
+            (policyVersion != null && policyVersion < 1)
+        ) {
+            return@runBlocking invalidPayload()
+        }
 
-        val current = when (val result = localStateRepository.read()) {
-            is OperationResult.Failure -> {
-                return@runBlocking OperationResult.Success(
+        when (val result = synchronizer.synchronize(policyId, policyVersion)) {
+            is OperationResult.Failure ->
+                OperationResult.Success(
                     CommandResult(
                         CommandExecutionState.FAILED,
-                        "LOCAL_STATE_UNAVAILABLE",
+                        "POLICY_SYNC_FAILED",
                         result.error.name,
                     ),
                 )
-            }
-            is OperationResult.Success -> result.value
-        } ?: return@runBlocking OperationResult.Success(
-            CommandResult(
-                CommandExecutionState.FAILED,
-                "LOCAL_STATE_UNAVAILABLE",
-                "STORAGE_FAILURE",
-            ),
-        )
 
-        val acceptedVersion = current.acceptedApplicationPolicyVersion ?: 0
-        val currentPolicyId = current.desiredApplicationPolicyId
-        when {
-            policyVersion < acceptedVersion -> {
-                localStateRepository.updateApplicationPolicySyncStatus(
-                    ApplicationPolicySyncStatus.STALE,
-                )
-                localStateRepository.updateApplicationEnforcementStatus(
-                    ApplicationEnforcementStatus.STALE,
-                )
-                OperationResult.Success(
-                    CommandResult(
-                        CommandExecutionState.SUCCEEDED,
-                        "STALE_POLICY",
-                        null,
-                    ),
-                )
-            }
-            policyVersion == acceptedVersion && currentPolicyId != null && currentPolicyId != policyId ->
-                OperationResult.Success(
-                    CommandResult(
-                        CommandExecutionState.FAILED,
-                        "POLICY_VERSION_CONFLICT",
-                        "INVALID_POLICY_VERSION",
-                    ),
-                )
-            policyVersion == acceptedVersion && currentPolicyId == policyId -> {
-                localStateRepository.updateApplicationPolicySyncStatus(
-                    ApplicationPolicySyncStatus.PENDING,
-                )
-                localStateRepository.updateApplicationEnforcementStatus(
-                    ApplicationEnforcementStatus.PENDING,
-                )
-                OperationResult.Success(
-                    CommandResult(
-                        CommandExecutionState.SUCCEEDED,
-                        "POLICY_ALREADY_ACCEPTED",
-                        null,
-                        JSONObject()
-                            .put("policyVersion", policyVersion)
-                            .put("enforcementState", ApplicationEnforcementStatus.PENDING.name)
-                            .put("policyRulesAvailable", false)
-                            .toString(),
-                    ),
-                )
-            }
-            else -> {
-                val stored = localStateRepository.updateApplicationPolicyReference(
-                    policyId,
-                    policyVersion,
-                    ApplicationPolicySyncStatus.PENDING,
-                )
-                if (stored is OperationResult.Failure) {
-                    OperationResult.Success(
-                        CommandResult(
-                            CommandExecutionState.FAILED,
-                            "POLICY_STATE_UPDATE_FAILED",
-                            stored.error.name,
-                        ),
-                    )
-                } else {
-                    OperationResult.Success(
-                        CommandResult(
-                            CommandExecutionState.SUCCEEDED,
-                            "POLICY_REFERENCE_ACCEPTED",
-                            null,
-                            JSONObject()
-                                .put("policyVersion", policyVersion)
-                                .put("enforcementState", ApplicationEnforcementStatus.PENDING.name)
-                                .put("policyRulesAvailable", false)
-                                .toString(),
-                        ),
-                    )
+            is OperationResult.Success -> {
+                val outcome = result.value
+                when (outcome.status) {
+                    ApplicationEnforcementStatus.APPLIED ->
+                        OperationResult.Success(
+                            CommandResult(
+                                CommandExecutionState.SUCCEEDED,
+                                "POLICY_ENFORCED",
+                                null,
+                                JSONObject()
+                                    .put("policyVersion", outcome.policyVersion)
+                                    .put("enforcementState", outcome.status.name)
+                                    .put("attempted", outcome.attempted)
+                                    .put("succeeded", outcome.succeeded)
+                                    .toString(),
+                            ),
+                        )
+
+                    ApplicationEnforcementStatus.PARTIALLY_APPLIED ->
+                        OperationResult.Success(
+                            CommandResult(
+                                CommandExecutionState.FAILED,
+                                "POLICY_PARTIALLY_ENFORCED",
+                                outcome.errorCode,
+                                JSONObject()
+                                    .put("policyVersion", outcome.policyVersion)
+                                    .put("enforcementState", outcome.status.name)
+                                    .put("attempted", outcome.attempted)
+                                    .put("succeeded", outcome.succeeded)
+                                    .put("failed", outcome.failed)
+                                    .toString(),
+                            ),
+                        )
+
+                    else ->
+                        OperationResult.Success(
+                            CommandResult(
+                                CommandExecutionState.FAILED,
+                                "POLICY_ENFORCEMENT_FAILED",
+                                outcome.errorCode ?: "ENFORCEMENT_FAILED",
+                                JSONObject()
+                                    .put("policyVersion", outcome.policyVersion)
+                                    .put("enforcementState", outcome.status.name)
+                                    .toString(),
+                            ),
+                        )
                 }
             }
         }
@@ -176,5 +148,5 @@ class ApplicationPolicyCommandHandler(
         )
 
     private fun isUuid(value: String): Boolean =
-        runCatching { UUID.fromString(value) }.isSuccess
+        runCatching { java.util.UUID.fromString(value) }.isSuccess
 }
