@@ -143,6 +143,26 @@ class ParentoApplication : Application() {
         }
     }
 
+    val applicationEnforcementEngine: com.parento.managed.application.ApplicationEnforcementEngine by lazy {
+        com.parento.managed.application.ApplicationEnforcementEngine(
+            platform = com.parento.managed.application.AndroidApplicationEnforcementPlatform(this),
+            managedPackageName = packageName,
+        )
+    }
+
+    val applicationPolicySynchronizer: com.parento.managed.application.ApplicationPolicySynchronizer by lazy {
+        com.parento.managed.application.ApplicationPolicySynchronizer(
+            localStateRepository = localStateRepository,
+            sessionManager = deviceCommunicationSessionManager,
+            enforcementEngine = applicationEnforcementEngine,
+            managementModeProvider = {
+                com.parento.managed.device.AndroidDeviceManagementManager(
+                    com.parento.managed.device.AndroidDeviceManagementPlatform(this),
+                ).detectManagementMode()
+            },
+        )
+    }
+
     val managedCommandRuntime: ManagedCommandRuntime by lazy {
         ManagedCommandRuntime(
             dao = LocalDatabaseProvider.get().managedCommandDao(),
@@ -150,6 +170,7 @@ class ParentoApplication : Application() {
             screenShareManager = screenShareManager,
             applicationInventorySync = applicationInventorySync,
             localStateRepository = localStateRepository,
+            applicationPolicySynchronizer = applicationPolicySynchronizer,
         )
     }
 
@@ -258,6 +279,8 @@ class ParentoApplication : Application() {
                 if (result.value.enrollmentState == com.parento.managed.domain.EnrollmentState.ENROLLED) {
                     deviceCommunicationSessionManager.connect()
                 }
+                applicationPolicySynchronizer.reconcileStoredPolicy()
+                managedCommandRuntime.start(applicationScope)
                 logger.log(LogLevel.INFO, "Managed-device initialization completed.")
             } else {
                 logger.log(LogLevel.ERROR, "Managed-device initialization failed.")
@@ -286,6 +309,7 @@ class ParentoApplication : Application() {
 
     override fun onTerminate() {
         if (::connectivityObserver.isInitialized) connectivityObserver.stop()
+        if (databaseIsInitialized()) managedCommandRuntime.stop()
         applicationScope.cancel()
         if (databaseIsInitialized()) LocalDatabaseProvider.get().close()
         super.onTerminate()
