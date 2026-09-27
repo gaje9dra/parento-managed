@@ -226,14 +226,16 @@ class ParentoApplication : Application() {
             context = this,
             onChanged = { availability ->
                 logger.log(LogLevel.DEBUG, "Network availability observed: $availability.")
-                if (availability) {
+                if (availability == com.parento.managed.lifecycle.NetworkAvailability.CONNECTED) {
                     applicationScope.launch {
-                        if (_initializationState.value.status == InitializationStatus.READY &&
-                            localStateRepository.getEnrollmentState() is OperationResult.Success &&
-                            (localStateRepository.getEnrollmentState() as OperationResult.Success).value == com.parento.managed.domain.EnrollmentState.ENROLLED
-                        ) {
-                            ensureConnectedForBackgroundWork()
-                            networkPolicySynchronizer.synchronize(null, null)
+                        if (_initializationState.value.status == InitializationStatus.READY) {
+                            val enrollment = localStateRepository.getEnrollmentState()
+                            if (enrollment is OperationResult.Success &&
+                                enrollment.value == com.parento.managed.domain.EnrollmentState.ENROLLED
+                            ) {
+                                ensureConnectedForBackgroundWork()
+                                networkPolicySynchronizer.synchronize(null, null)
+                            }
                         }
                     }
                 }
