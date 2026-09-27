@@ -110,6 +110,7 @@ abstract class ParentoDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE local_application_state ADD COLUMN desiredApplicationPolicyRulesJson TEXT")
                 database.execSQL("ALTER TABLE local_application_state ADD COLUMN appliedApplicationPolicyId TEXT")
                 database.execSQL("ALTER TABLE local_application_state ADD COLUMN appliedApplicationPolicyVersion INTEGER")
+                database.execSQL("ALTER TABLE local_application_state ADD COLUMN enforcedBlockedPackagesJson TEXT")
             }
         }
 
