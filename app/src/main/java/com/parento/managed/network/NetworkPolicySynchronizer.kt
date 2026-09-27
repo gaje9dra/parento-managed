@@ -8,7 +8,7 @@ class NetworkPolicySynchronizer(
     private val transport: DeviceTransport,
     private val stateRepository: NetworkPolicyStateRepository,
     private val enforcer: NetworkPolicyEnforcer,
-    private val sessionTokenProvider: () -> String,
+    private val sessionTokenProvider: suspend () -> String?,
     private val nowEpochMillis: () -> Long = { System.currentTimeMillis() },
 ) {
     suspend fun synchronize(expectedPolicyId: String?, expectedPolicyVersion: Long?): OperationResult<NetworkPolicyEnforcementResult> {
@@ -33,7 +33,7 @@ class NetworkPolicySynchronizer(
             ),
         )
         val capabilityReport = transport.reportNetworkPolicyCapability(
-            sessionToken = sessionTokenProvider(),
+            sessionToken = sessionTokenProvider().orEmpty().orEmpty(),
             capability = capability,
         )
         if (capabilityReport is OperationResult.Failure) {
