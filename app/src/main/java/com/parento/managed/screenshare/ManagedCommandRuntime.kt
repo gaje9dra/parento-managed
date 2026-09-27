@@ -21,6 +21,7 @@ class ManagedCommandRuntime(
     screenShareManager: ScreenShareManager,
     applicationInventorySync: com.parento.managed.application.ApplicationInventorySync,
     localStateRepository: com.parento.managed.data.LocalStateRepository,
+    networkPolicySynchronizer: NetworkPolicySynchronizer,
 ) {
     private val handlers = mapOf(
         "START_SCREEN_SHARE" to ScreenShareStartCommandHandler(screenShareManager),
