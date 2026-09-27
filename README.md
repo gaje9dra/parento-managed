@@ -350,6 +350,16 @@ Phase 9.2 adds the Managed Android MediaProjection foundation for authorized scr
 Detailed architecture and the real-device test plan are documented in `docs/phase-9.2-screen-capture.md`.
 
 
+## Phase 12.2 — Managed Android Website & Network Blocking Enforcement Foundation
+
+Phase 12.2 adds the Managed-side network-policy domain, authenticated policy retrieval/reporting through the existing device transport, version-safe reconciliation, local Room persistence, command handlers, capability reporting, and a platform enforcement boundary.
+
+The current Android architecture does not provide a legitimate universal hostname-blocking mechanism across applications and transports. Device Owner/Profile Owner status therefore does not imply unrestricted network control. The implementation reports network-policy enforcement as `UNSUPPORTED` for known management modes and `UNKNOWN` when management detection is unavailable. It does not simulate blocking and does not use VPN interception, TLS interception, certificates, Accessibility, root, shell commands, hidden APIs, packet inspection, or browsing surveillance.
+
+The last authoritative desired policy is retained locally for restart/offline recovery. The existing authenticated Phase 6 command system is reused for `SYNC_NETWORK_POLICY` and `REQUEST_NETWORK_POLICY_STATUS`; no second realtime system or polling loop is introduced.
+
+See `docs/phase-12.2-network-policy-enforcement.md`.
+
 ## Phase 11.2 — Managed Android Application Inventory & Management Foundation
 
 Phase 11.2 adds deterministic PackageManager-based application inventory collection, bounded authenticated inventory synchronization, WorkManager scheduling, local application-management synchronization metadata, and allowlisted application inventory/policy-reference command handlers.
