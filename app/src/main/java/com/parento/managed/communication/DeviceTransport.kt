@@ -2,6 +2,13 @@ package com.parento.managed.communication
 
 import com.parento.managed.domain.ManagedError
 import com.parento.managed.domain.OperationResult
+import com.parento.managed.network.NetworkCapabilityMode
+import com.parento.managed.network.NetworkEnforcementStatus
+import com.parento.managed.network.NetworkPolicy
+import com.parento.managed.network.NetworkPolicyCapability
+import com.parento.managed.network.NetworkPolicyDomain
+import com.parento.managed.network.NetworkPolicyRule
+import com.parento.managed.network.NetworkRuleAction
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -59,6 +66,22 @@ interface DeviceTransport {
     suspend fun reportApplicationEnforcement(
         sessionToken: String,
         payloadJson: String,
+    ): OperationResult<Unit>
+
+    suspend fun fetchNetworkPolicy(sessionToken: String): OperationResult<NetworkPolicy?>
+
+    suspend fun reportNetworkPolicyStatus(
+        sessionToken: String,
+        policyId: String?,
+        policyVersion: Long?,
+        status: NetworkEnforcementStatus,
+        reportedAtEpochMillis: Long,
+        errorCode: String?,
+    ): OperationResult<Unit>
+
+    suspend fun reportNetworkPolicyCapability(
+        sessionToken: String,
+        capability: NetworkPolicyCapability,
     ): OperationResult<Unit>
 }
 
@@ -151,6 +174,76 @@ class HttpsDeviceTransport(
     ): OperationResult<Unit> =
         requestJson("/api/v1/device/applications/enforcement-status", "POST", sessionToken, payloadJson) { Unit }
 
+    override suspend fun fetchNetworkPolicy(sessionToken: String): OperationResult<NetworkPolicy?> =
+        requestGet("/api/v1/device/network-policy", sessionToken) { body ->
+            val data = JSONObject(body).getJSONObject("data")
+            val policyObject = data.optJSONObject("policy") ?: return@requestGet null
+            val rulesArray = policyObject.optJSONArray("rules")
+            val rules = buildList {
+                for (index in 0 until (rulesArray?.length() ?: 0)) {
+                    val item = rulesArray!!.getJSONObject(index)
+                    val normalized = NetworkPolicyDomain.normalize(item.getString("domain"))
+                        ?: throw IllegalArgumentException("Invalid network-policy domain.")
+                    add(
+                        NetworkPolicyRule(
+                            ruleId = item.getString("id"),
+                            domain = normalized,
+                            action = NetworkRuleAction.valueOf(item.getString("action")),
+                            enabled = item.getBoolean("enabled"),
+                        ),
+                    )
+                }
+            }
+            val policy = NetworkPolicy(
+                policyId = policyObject.getString("id"),
+                version = policyObject.getLong("version"),
+                status = com.parento.managed.network.NetworkPolicyStatus.valueOf(policyObject.getString("status")),
+                name = policyObject.optString("name").ifBlank { null },
+                description = policyObject.optString("description").ifBlank { null },
+                rules = rules,
+                receivedAtEpochMillis = System.currentTimeMillis(),
+            )
+            if (!NetworkPolicyDomain.validateRules(policy.rules) || policy.version < 1L) {
+                throw IllegalArgumentException("Invalid network policy.")
+            }
+            policy
+        }
+
+    override suspend fun reportNetworkPolicyStatus(
+        sessionToken: String,
+        policyId: String?,
+        policyVersion: Long?,
+        status: NetworkEnforcementStatus,
+        reportedAtEpochMillis: Long,
+        errorCode: String?,
+    ): OperationResult<Unit> =
+        requestJson(
+            "/api/v1/device/network-policy/status",
+            "POST",
+            sessionToken,
+            JSONObject()
+                .put("policyId", policyId)
+                .put("policyVersion", policyVersion)
+                .put("status", status.name)
+                .put("reportedAt", java.time.Instant.ofEpochMilli(reportedAtEpochMillis).toString())
+                .put("errorCode", errorCode),
+        ) { Unit }
+
+    override suspend fun reportNetworkPolicyCapability(
+        sessionToken: String,
+        capability: NetworkPolicyCapability,
+    ): OperationResult<Unit> =
+        requestJson(
+            "/api/v1/device/network-policy/capability",
+            "POST",
+            sessionToken,
+            JSONObject()
+                .put("supported", capability.supported)
+                .put("mode", capability.mode.name)
+                .put("capabilityVersion", capability.capabilityVersion)
+                .put("reportedAt", java.time.Instant.ofEpochMilli(capability.reportedAtEpochMillis).toString()),
+        ) { Unit }
+
 
     private suspend fun <T> request(
         path: String,
@@ -183,6 +276,37 @@ class HttpsDeviceTransport(
                 } else {
                     OperationResult.Success(parse(responseBody))
                 }
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrElse {
+            if (it is IOException) OperationResult.Failure(ManagedError.NETWORK_FAILURE)
+            else OperationResult.Failure(ManagedError.UNKNOWN)
+        }
+    }
+
+    private suspend fun <T> requestGet(
+        path: String,
+        bearer: String,
+        parse: (String) -> T,
+    ): OperationResult<T> = withContext(Dispatchers.IO) {
+        runCatching {
+            val endpoint = URL(baseUrl.trimEnd('/') + path)
+            if (requireHttps && endpoint.protocol != "https") {
+                return@withContext OperationResult.Failure(ManagedError.AUTHORIZATION_FAILURE)
+            }
+            val connection = endpoint.openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 15_000
+                connection.useCaches = false
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Authorization", "Bearer $bearer")
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val responseBody = stream?.bufferedReader()?.use { readBounded(it) }.orEmpty()
+                if (status !in 200..299) mapFailure(status) else OperationResult.Success(parse(responseBody))
             } finally {
                 connection.disconnect()
             }
