@@ -33,14 +33,14 @@ class NetworkPolicySynchronizer(
             ),
         )
         val capabilityReport = transport.reportNetworkPolicyCapability(
-            sessionToken = sessionTokenProvider().orEmpty().orEmpty(),
+            sessionToken = sessionTokenProvider().orEmpty(),
             capability = capability,
         )
         if (capabilityReport is OperationResult.Failure) {
             // Capability reporting is retried by the existing authenticated command/session path.
         }
 
-        val remote = transport.fetchNetworkPolicy(currentSessionTokenPlaceholder)
+        val remote = transport.fetchNetworkPolicy(sessionTokenProvider().orEmpty())
         val policy = when (remote) {
             is OperationResult.Failure -> return remote
             is OperationResult.Success -> remote.value
@@ -147,7 +147,7 @@ class NetworkPolicySynchronizer(
         val written = stateRepository.write(state)
         if (written is OperationResult.Failure) return written
         transport.reportNetworkPolicyStatus(
-            sessionToken = sessionTokenProvider(),
+            sessionToken = sessionTokenProvider().orEmpty(),
             policyId = state.desiredPolicyId,
             policyVersion = state.desiredPolicyVersion,
             status = result.status,
