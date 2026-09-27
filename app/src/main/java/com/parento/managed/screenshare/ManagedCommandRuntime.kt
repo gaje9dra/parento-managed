@@ -11,6 +11,12 @@ import com.parento.managed.communication.DeviceCommunicationSessionManager
 import com.parento.managed.communication.TransportCommand
 import com.parento.managed.data.local.ManagedCommandDao
 import com.parento.managed.domain.OperationResult
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class ManagedCommandRuntime(
     private val dao: ManagedCommandDao,
@@ -18,13 +24,41 @@ class ManagedCommandRuntime(
     screenShareManager: ScreenShareManager,
     applicationInventorySync: com.parento.managed.application.ApplicationInventorySync,
     localStateRepository: com.parento.managed.data.LocalStateRepository,
+    applicationPolicySynchronizer: com.parento.managed.application.ApplicationPolicySynchronizer,
 ) {
+
     private val handlers = mapOf(
         "START_SCREEN_SHARE" to ScreenShareStartCommandHandler(screenShareManager),
         "STOP_SCREEN_SHARE" to ScreenShareStopCommandHandler(screenShareManager),
         "REQUEST_APPLICATION_INVENTORY" to ApplicationInventoryCommandHandler(applicationInventorySync),
-        "SYNC_APPLICATION_POLICY" to ApplicationPolicyCommandHandler(localStateRepository),
+        "SYNC_APPLICATION_POLICY" to ApplicationPolicyCommandHandler(applicationPolicySynchronizer),
     )
+
+    private var streamJob: Job? = null
+
+    fun start(scope: CoroutineScope) {
+        if (streamJob?.isActive == true) return
+        streamJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val token = sessionManager.currentSessionToken()
+                if (token == null) {
+                    delay(5_000)
+                    continue
+                }
+                when (val result = sessionManager.transportBoundary().streamCommands(token) { command ->
+                    process(command)
+                }) {
+                    is OperationResult.Success -> delay(1_000)
+                    is OperationResult.Failure -> delay(5_000)
+                }
+            }
+        }
+    }
+
+    fun stop() {
+        streamJob?.cancel()
+        streamJob = null
+    }
 
     suspend fun processNextCommand(): OperationResult<CommandResult?> =
         when (val received = sessionManager.receiveNextCommand()) {
