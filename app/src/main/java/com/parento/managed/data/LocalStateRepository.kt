@@ -398,6 +398,7 @@ private fun LocalApplicationState.toEntity(): LocalApplicationStateEntity =
         acceptedApplicationPolicyVersion = acceptedApplicationPolicyVersion,
         appliedApplicationPolicyId = appliedApplicationPolicyId,
         appliedApplicationPolicyVersion = appliedApplicationPolicyVersion,
+        enforcedBlockedPackagesJson = enforcedBlockedPackagesJson,
         applicationPolicySyncStatus = applicationPolicySyncStatus.name,
         applicationEnforcementStatus = applicationEnforcementStatus.name,
     )
