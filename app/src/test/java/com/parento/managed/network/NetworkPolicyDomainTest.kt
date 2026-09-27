@@ -35,7 +35,7 @@ class NetworkPolicyDomainTest {
     @Test
     fun rejectsHostnamesLongerThanBackendMaximum() {
         val label = "a".repeat(63)
-        val tooLong = listOf(label, label, label, "com").joinToString(".")
+        val tooLong = listOf(label, label, label, label, "com").joinToString(".")
         assertTrue(tooLong.length > 253)
         assertTrue(NetworkPolicyDomain.normalize(tooLong) == null)
     }
