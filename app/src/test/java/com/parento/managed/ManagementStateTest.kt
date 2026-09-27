@@ -137,7 +137,6 @@ class ManagementStateTest {
             this.state = (this.state ?: LocalApplicationState()).copy(connectionState = state)
             return OperationResult.Success(Unit)
         }
-    }
         override suspend fun updateApplicationInventorySync(
             status: com.parento.managed.application.ApplicationInventorySyncStatus,
             observedAtEpochMillis: Long?,
@@ -154,4 +153,5 @@ class ManagementStateTest {
         override suspend fun updateApplicationPolicySyncStatus(
             status: com.parento.managed.application.ApplicationPolicySyncStatus,
         ): OperationResult<Unit> = OperationResult.Success(Unit)
+    }
 }
